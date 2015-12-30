@@ -1,0 +1,18 @@
+{
+  "name": "notamedia/yii2-relation",
+  "description": "Saving related data in Yii2",
+  "keywords": [
+    "yii2",
+    "relation"
+  ],
+  "type": "yii2-extension",
+  "license": "MIT",
+  "require": {
+    "yiisoft/yii2": "~2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "notamedia\\relation\\": ""
+    }
+  }
+}
