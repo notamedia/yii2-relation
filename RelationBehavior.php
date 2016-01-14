@@ -145,11 +145,6 @@ class RelationBehavior extends Behavior
             $params = !ArrayHelper::isAssociative($activeQuery->on) ? [] : $activeQuery->on;
 
             if ($activeQuery->multiple) {
-
-                foreach ($activeQuery->link as $childAttribute => $parentAttribute) {
-                    $params[$childAttribute] = $this->owner->$parentAttribute;
-                }
-
                 if (!empty($data['data'])) {
                     foreach ($data['data'] as $attributes) {
                         $data['newModels'][] = new $class(array_merge($params, $attributes));
@@ -204,6 +199,11 @@ class RelationBehavior extends Behavior
             /** @var ActiveRecord $model */
             foreach ($data['newModels'] as $model) {
                 if (!$this->isExistingModel($model, $attribute)) {
+                    if ($data['activeQuery']->multiple) {
+                        foreach ($data['activeQuery']->link as $childAttribute => $parentAttribute) {
+                            $model->$childAttribute = $this->owner->$parentAttribute;
+                        }
+                    }
                     if (!$model->save()) {
                         Yii::$app->getDb()->getTransaction()->rollBack();
                         throw new Exception('Model ' . $model::className() . ' not saved due to unknown error');
