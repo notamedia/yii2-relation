@@ -197,6 +197,8 @@ class RelationBehavior extends Behavior
             }
             unset($data['data']);
         }
+
+//        var_dump($this->owner->getErrors());die();
     }
 
     /**
