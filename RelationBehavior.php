@@ -4,6 +4,7 @@ namespace notamedia\relation;
 
 use yii\base\Behavior;
 use yii\base\Exception;
+use yii\base\ModelEvent;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
 use yii\helpers\ArrayHelper;
@@ -20,6 +21,7 @@ use Yii;
  *
  * This behavior uses getters for relational attribute in owner model, such getters must return `ActiveQuery` object.
  * If you use string values in ON condition in `ActiveQuery` object, then this behavior will throw exception.
+ * Also if many-to-many getter use ->viaTable(...) behavior will throw exception, use ->via(...) instead.
  *
  * For support transactions method transactions() in owner model must be defined:
  * ```php
@@ -50,15 +52,14 @@ class RelationBehavior extends Behavior
     /**
      * Process owner-model before save event.
      *
+     * @param ModelEvent $event object of event called by model
      * @return bool
-     *
      * @throws Exception
      */
-    public function beforeSave()
+    public function beforeSave($event)
     {
         $this->loadData();
-
-        return $this->validateData();
+        $event->isValid = $this->validateData();
     }
 
     /**
@@ -166,25 +167,25 @@ class RelationBehavior extends Behavior
                     $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
                     $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
                     $data['junctionTable'] = $junctionModelClass::tableName();
-                    list($data['junctionColumn'])  = array_keys($via->link);
+                    list($data['junctionColumn']) = array_keys($via->link);
                     list($data['relatedColumn']) = array_values($activeQuery->link);
-
                     $relatedColumn = $data['relatedColumn'];
 
-                    // make sure what all model's ids from POST exists in database
-                    $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
-                    if ($countManyToManyModels != count($data['data'])) {
-                        throw new Exception('Related records for attribute ' . $attribute . ' not found');
+                    if (!empty($data['data'])) {
+                        // make sure what all model's ids from POST exists in database
+                        $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
+                        if ($countManyToManyModels != count($data['data'])) {
+                            throw new Exception('Related records for attribute ' . $attribute . ' not found');
+                        }
+                        // create new junction models
+                        foreach ($data['data'] as $relatedModelId) {
+                            $junctionModel = new $junctionModelClass();
+                            $junctionModel->$relatedColumn = $relatedModelId;
+                            $data['newModels'][] = $junctionModel;
+                        }
                     }
 
                     $data['oldModels'] = $this->owner->$junctionGetter()->all();
-
-                    // create new junction models
-                    foreach ($data['data'] as $relatedModelId) {
-                        $junctionModel = new $junctionModelClass();
-                        $junctionModel->$relatedColumn = $relatedModelId;
-                        $data['newModels'][] = $junctionModel;
-                    }
                 }
 
             } elseif (!empty($data['data'])) {
@@ -197,8 +198,6 @@ class RelationBehavior extends Behavior
             }
             unset($data['data']);
         }
-
-//        var_dump($this->owner->getErrors());die();
     }
 
     /**
@@ -241,7 +240,7 @@ class RelationBehavior extends Behavior
             /** @var ActiveRecord $model */
             foreach ($data['newModels'] as $model) {
                 if (!$this->isExistingModel($model, $attribute)) {
-                    if(!empty($data['activeQuery']->via)) {
+                    if (!empty($data['activeQuery']->via)) {
                         // only for many-to-many
                         $junctionColumn = $data['junctionColumn'];
                         $model->$junctionColumn = $this->owner->getPrimaryKey();
