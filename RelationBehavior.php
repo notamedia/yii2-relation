@@ -244,7 +244,7 @@ class RelationBehavior extends Behavior
                         // only for many-to-many
                         $junctionColumn = $data['junctionColumn'];
                         $model->$junctionColumn = $this->owner->getPrimaryKey();
-                    }elseif ($data['activeQuery']->multiple) {
+                    } elseif ($data['activeQuery']->multiple) {
                         // only one-to-many
                         foreach ($data['activeQuery']->link as $childAttribute => $parentAttribute) {
                             $model->$childAttribute = $this->owner->$parentAttribute;
@@ -350,7 +350,14 @@ class RelationBehavior extends Behavior
             $getter = 'get' . ucfirst($attribute);
             /** @var ActiveQuery $activeQuery */
             $activeQuery = $this->owner->$getter();
-            $models = $activeQuery->all();
+
+            if (empty($activeQuery->via)) {
+                $models = $activeQuery->all();
+            } else {
+                $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+                $models = $this->owner->$junctionGetter()->all();
+            }
+
             foreach ($models as $model) {
                 if (!$model->delete()) {
                     Yii::$app->getDb()->getTransaction()->rollBack();
