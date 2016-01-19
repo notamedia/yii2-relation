@@ -4,6 +4,7 @@ namespace notamedia\relation;
 
 use yii\base\Behavior;
 use yii\base\Exception;
+use yii\base\ModelEvent;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
 use yii\helpers\ArrayHelper;
@@ -16,10 +17,11 @@ use Yii;
  * - Delete related models from database which not exist in POST array
  * - Skip related models which already exist in database with same attributes
  * - Rollback database changes, if relational model save/delete error occurred
- * - Support one-to-one and one-to-many relations
+ * - Support one-to-one, one-to-many and many-to-many relations
  *
  * This behavior uses getters for relational attribute in owner model, such getters must return `ActiveQuery` object.
  * If you use string values in ON condition in `ActiveQuery` object, then this behavior will throw exception.
+ * Also if many-to-many getter use ->viaTable(...) behavior will throw exception, use ->via(...) instead.
  *
  * For support transactions method transactions() in owner model must be defined:
  * ```php
@@ -50,15 +52,14 @@ class RelationBehavior extends Behavior
     /**
      * Process owner-model before save event.
      *
+     * @param ModelEvent $event object of event called by model
      * @return bool
-     *
      * @throws Exception
      */
-    public function beforeSave()
+    public function beforeSave($event)
     {
         $this->loadData();
-
-        return $this->validateData();
+        $event->isValid = $this->validateData();
     }
 
     /**
@@ -145,16 +146,56 @@ class RelationBehavior extends Behavior
             $params = !ArrayHelper::isAssociative($activeQuery->on) ? [] : $activeQuery->on;
 
             if ($activeQuery->multiple) {
-                if (!empty($data['data'])) {
-                    foreach ($data['data'] as $attributes) {
-                        $data['newModels'][] = new $class(array_merge($params, $attributes));
+                if (empty($activeQuery->via)) {
+                    // one-to-many
+                    foreach ($activeQuery->link as $childAttribute => $parentAttribute) {
+                        $params[$childAttribute] = $this->owner->$parentAttribute;
                     }
+
+                    if (!empty($data['data'])) {
+                        foreach ($data['data'] as $attributes) {
+                            $data['newModels'][] = new $class(array_merge($params, $attributes));
+                        }
+                    }
+                } else {
+                    // many-to-many
+                    if (!is_object($activeQuery->via[1])) {
+                        throw new Exception('via condition for attribute ' . $attribute . ' cannot must be object');
+                    }
+
+                    $via = $activeQuery->via[1];
+                    $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+                    $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
+                    $data['junctionTable'] = $junctionModelClass::tableName();
+                    list($data['junctionColumn']) = array_keys($via->link);
+                    list($data['relatedColumn']) = array_values($activeQuery->link);
+                    $relatedColumn = $data['relatedColumn'];
+
+                    if (!empty($data['data'])) {
+                        // make sure what all model's ids from POST exists in database
+                        $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
+                        if ($countManyToManyModels != count($data['data'])) {
+                            throw new Exception('Related records for attribute ' . $attribute . ' not found');
+                        }
+                        // create new junction models
+                        foreach ($data['data'] as $relatedModelId) {
+                            $junctionModel = new $junctionModelClass();
+                            $junctionModel->$relatedColumn = $relatedModelId;
+                            $data['newModels'][] = $junctionModel;
+                        }
+                    }
+
+                    $data['oldModels'] = $this->owner->$junctionGetter()->all();
                 }
+
             } elseif (!empty($data['data'])) {
+                // one-to-one
                 $data['newModels'][] = new $class($data['data']);
             }
 
-            $data['oldModels'] = $activeQuery->all();
+            if (empty($activeQuery->via)) {
+                $data['oldModels'] = $activeQuery->all();
+            }
             unset($data['data']);
         }
     }
@@ -199,7 +240,12 @@ class RelationBehavior extends Behavior
             /** @var ActiveRecord $model */
             foreach ($data['newModels'] as $model) {
                 if (!$this->isExistingModel($model, $attribute)) {
-                    if ($data['activeQuery']->multiple) {
+                    if (!empty($data['activeQuery']->via)) {
+                        // only for many-to-many
+                        $junctionColumn = $data['junctionColumn'];
+                        $model->$junctionColumn = $this->owner->getPrimaryKey();
+                    } elseif ($data['activeQuery']->multiple) {
+                        // only one-to-many
                         foreach ($data['activeQuery']->link as $childAttribute => $parentAttribute) {
                             $model->$childAttribute = $this->owner->$parentAttribute;
                         }
@@ -304,7 +350,14 @@ class RelationBehavior extends Behavior
             $getter = 'get' . ucfirst($attribute);
             /** @var ActiveQuery $activeQuery */
             $activeQuery = $this->owner->$getter();
-            $models = $activeQuery->all();
+
+            if (empty($activeQuery->via)) {
+                $models = $activeQuery->all();
+            } else {
+                $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+                $models = $this->owner->$junctionGetter()->all();
+            }
+
             foreach ($models as $model) {
                 if (!$model->delete()) {
                     Yii::$app->getDb()->getTransaction()->rollBack();
