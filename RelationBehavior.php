@@ -244,6 +244,11 @@ class RelationBehavior extends Behavior
                         // only for many-to-many
                         $junctionColumn = $data['junctionColumn'];
                         $model->$junctionColumn = $this->owner->getPrimaryKey();
+                    }elseif ($data['activeQuery']->multiple) {
+                        // only one-to-many
+                        foreach ($data['activeQuery']->link as $childAttribute => $parentAttribute) {
+                            $model->$childAttribute = $this->owner->$parentAttribute;
+                        }
                     }
                     if (!$model->save()) {
                         Yii::$app->getDb()->getTransaction()->rollBack();
