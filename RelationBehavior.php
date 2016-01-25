@@ -197,6 +197,10 @@ class RelationBehavior extends Behavior
                 $data['oldModels'] = $activeQuery->all();
             }
             unset($data['data']);
+
+            foreach ($data['newModels'] as $i => $model) {
+                $data['newModels'][$i] = $this->replaceExistingModel($model, $attribute);
+            }
         }
     }
 
@@ -239,7 +243,7 @@ class RelationBehavior extends Behavior
         foreach ($this->relationalData as $attribute => $data) {
             /** @var ActiveRecord $model */
             foreach ($data['newModels'] as $model) {
-                if (!$this->isExistingModel($model, $attribute)) {
+                if ($model->isNewRecord) {
                     if (!empty($data['activeQuery']->via)) {
                         // only for many-to-many
                         $junctionColumn = $data['junctionColumn'];
@@ -286,14 +290,14 @@ class RelationBehavior extends Behavior
     }
 
     /**
-     * Check if model is existing (found in old models).
+     * Return existing model if it found in old models
      *
      * @param ActiveRecord $model
      * @param $attribute
      *
-     * @return bool
+     * @return ActiveRecord
      */
-    protected function isExistingModel($model, $attribute)
+    protected function replaceExistingModel($model, $attribute)
     {
         $modelAttributes = $model->attributes;
         unset($modelAttributes[$model->primaryKey()[0]]);
@@ -304,11 +308,11 @@ class RelationBehavior extends Behavior
             unset($oldModelAttributes[$oldModel->primaryKey()[0]]);
 
             if ($oldModelAttributes == $modelAttributes) {
-                return true;
+                return $oldModel;
             }
         }
 
-        return false;
+        return $model;
     }
 
     /**
