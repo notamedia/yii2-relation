@@ -3,10 +3,16 @@
   "description": "Saving related data in Yii2",
   "keywords": [
     "yii2",
-    "relation"
+    "relation",
+    "many-to-many",
+    "one-to-many"
   ],
   "type": "yii2-extension",
   "license": "MIT",
+  "support": {
+    "issues": "https://github.com/notamedia/yii2-relation/issues",
+    "source": "https://github.com/notamedia/yii2-relation"
+  },
   "require": {
     "yiisoft/yii2": "~2.0"
   },

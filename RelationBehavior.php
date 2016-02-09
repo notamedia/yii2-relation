@@ -1,4 +1,8 @@
 <?php
+/**
+ * For the full copyright and license information, please view the LICENSE.md
+ * file that was distributed with this source code.
+ */
 
 namespace notamedia\relation;
 
@@ -133,7 +137,7 @@ class RelationBehavior extends Behavior
         /** @var ActiveQuery $activeQuery */
         foreach ($this->relationalData as $attribute => &$data) {
 
-            $getter = "get" . ucfirst($attribute);
+            $getter = 'get' . ucfirst($attribute);
             $data['activeQuery'] = $activeQuery = $this->owner->$getter();
             $data['newModels'] = [];
             $class = $activeQuery->modelClass;
