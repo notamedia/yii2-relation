@@ -158,7 +158,8 @@ class RelationBehavior extends Behavior
 
                     if (!empty($data['data'])) {
                         foreach ($data['data'] as $attributes) {
-                            $data['newModels'][] = new $class(array_merge($params, $attributes));
+                            $data['newModels'][] = new $class(array_merge($params,
+                                ArrayHelper::isAssociative($attributes) ? $attributes : []));
                         }
                     }
                 } else {
