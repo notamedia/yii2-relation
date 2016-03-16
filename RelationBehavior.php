@@ -210,7 +210,8 @@ class RelationBehavior extends Behavior
     }
 
     /**
-     * Validate relational models, return true only if all models successfully validated.
+     * Validate relational models, return true only if all models successfully validated. Skip errors for foreign
+     * columns.
      *
      * @return bool
      */
@@ -218,11 +219,24 @@ class RelationBehavior extends Behavior
     {
         foreach ($this->relationalData as $attribute => &$data) {
             /** @var ActiveRecord $model */
+            /** @var ActiveQuery $activeQuery */
+            $activeQuery = $data['activeQuery'];
             foreach ($data['newModels'] as &$model) {
                 if (!$model->validate()) {
-                    $this->owner->addError($attribute, $model->getErrors());
+                    $_errors = $model->getErrors();
+                    $errors = [];
 
-                    return false;
+                    foreach ($_errors as $attribute => $error) {
+                        if (!$activeQuery->multiple || !isset($activeQuery->link[$attribute])) {
+                            $errors[] = $error;
+                        }
+                    }
+
+                    if (count($errors)) {
+                        $this->owner->addError($attribute, $errors);
+
+                        return false;
+                    }
                 }
             }
         }
