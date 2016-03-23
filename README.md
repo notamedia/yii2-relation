@@ -56,7 +56,7 @@ class Entity extends ActiveRecord
     {
         return [
             [
-                'class' => RelationBehavior::class,
+                'class' => RelationBehavior::className(),
                 'relationalFields' => ['one_to_one_attribute']
             ]
         ];
@@ -102,7 +102,7 @@ class Entity extends ActiveRecord
     {
         return [
             [
-                'class' => RelationBehavior::class,
+                'class' => RelationBehavior::className(),
                 'relationalFields' => ['one_to_many_attribute']
             ]
         ];
@@ -140,19 +140,22 @@ class Entity extends ActiveRecord
        
     public function getEntityManyToManyModels()
     {
-        return $this->hasMany(EntityToManyToManyModel::className(), ['entity_id' => 'id']);
+        return $this->hasMany(EntityToManyToManyModel::className(), 
+            ['entity_id' => 'id']);
     }
 
     public function getMany_to_many_attribute()
     {
-        return $this->hasMany(ManyToManyModel::className(), ['id' => 'many_to_many_model_id'])->via('entityManyToManyModels');
+        return $this->hasMany(ManyToManyModel::className(), 
+            ['id' => 'many_to_many_model_id'])
+                ->via('entityManyToManyModels');
     }
     
     public function behaviors()
     {
         return [
             [
-                'class' => RelationBehavior::class,
+                'class' => RelationBehavior::className(),
                 'relationalFields' => ['many_to_many_attribute']
             ]
         ];
