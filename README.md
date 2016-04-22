@@ -65,7 +65,7 @@ class Entity extends ActiveRecord
     public function transactions()
     {
         return [
-            'default' => static::OP_ALL
+            $this->getScenario() => static::OP_ALL
         ];
     }
     
@@ -111,7 +111,7 @@ class Entity extends ActiveRecord
     public function transactions()
     {
         return [
-            'default' => static::OP_ALL
+            $this->getScenario() => static::OP_ALL
         ];
     }
     
@@ -164,7 +164,7 @@ class Entity extends ActiveRecord
     public function transactions()
     {
         return [
-            'default' => static::OP_ALL
+            $this->getScenario() => static::OP_ALL
         ];
     }
     
