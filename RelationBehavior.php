@@ -49,6 +49,11 @@ class RelationBehavior extends Behavior
     public $relationalFields = [];
 
     /**
+     * @var bool Indices finish of all saving operations 
+     */
+    public $relationalFinished = false;
+
+    /**
      * @var array Relation attributes data.
      */
     protected $relationalData = [];
@@ -64,6 +69,16 @@ class RelationBehavior extends Behavior
     {
         $this->loadData();
         $event->isValid = $this->validateData();
+    }
+
+    /**
+     * Return relation field data
+     * @param $name
+     * @return mixed|null
+     */
+    public function getRelationFieldData($name)
+    {
+        return isset($this->relationalData[$name]) ? $this->relationalData[$name]['data'] : null;
     }
 
     /**
@@ -296,11 +311,12 @@ class RelationBehavior extends Behavior
                 }
             }
         }
-
+        
+        $this->relationalFinished = true;
+        
         if ($needSaveOwner) {
             $model = $this->owner;
             $this->detach();
-
             if (!$model->save()) {
                 Yii::$app->getDb()->getTransaction()->rollBack();
                 throw new Exception('Owner-model ' . $model::className() . ' not saved due to unknown error');
