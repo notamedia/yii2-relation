@@ -7,7 +7,6 @@
 namespace notamedia\relation;
 
 use yii\base\Behavior;
-use yii\base\Exception;
 use yii\base\ModelEvent;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
@@ -63,7 +62,6 @@ class RelationBehavior extends Behavior
      *
      * @param ModelEvent $event object of event called by model
      * @return bool
-     * @throws Exception
      */
     public function beforeSave($event)
     {
@@ -83,7 +81,7 @@ class RelationBehavior extends Behavior
 
 
     /**
-     * Return saving state of relation data finished or not
+     * Return saving state of relation data finished or not. It's will finished after all relations models will saved.
      * @return bool 
      */
     public function isRelationalFinished()
@@ -93,9 +91,6 @@ class RelationBehavior extends Behavior
 
     /**
      * Process owner-model after save event. Save models.
-     *
-     * @throws Exception
-     * @throws \yii\db\Exception
      */
     public function afterSave()
     {
@@ -155,7 +150,7 @@ class RelationBehavior extends Behavior
      * ];
      * ```
      *
-     * @throws Exception
+     * @throws RelationException
      */
     protected function loadData()
     {
@@ -169,7 +164,7 @@ class RelationBehavior extends Behavior
 
             if (!ArrayHelper::isAssociative($activeQuery->on) && !empty($activeQuery->on)) {
                 Yii::$app->getDb()->getTransaction()->rollBack();
-                throw new Exception('ON condition for attribute ' . $attribute . ' must be associative array');
+                throw new RelationException('ON condition for attribute ' . $attribute . ' must be associative array');
             }
 
             $params = !ArrayHelper::isAssociative($activeQuery->on) ? [] : $activeQuery->on;
@@ -190,7 +185,7 @@ class RelationBehavior extends Behavior
                 } else {
                     // many-to-many
                     if (!is_object($activeQuery->via[1])) {
-                        throw new Exception('via condition for attribute ' . $attribute . ' cannot must be object');
+                        throw new RelationException('via condition for attribute ' . $attribute . ' cannot must be object');
                     }
 
                     $via = $activeQuery->via[1];
@@ -205,7 +200,7 @@ class RelationBehavior extends Behavior
                         // make sure what all model's ids from POST exists in database
                         $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
                         if ($countManyToManyModels != count($data['data'])) {
-                            throw new Exception('Related records for attribute ' . $attribute . ' not found');
+                            throw new RelationException('Related records for attribute ' . $attribute . ' not found');
                         }
                         // create new junction models
                         foreach ($data['data'] as $relatedModelId) {
@@ -275,10 +270,6 @@ class RelationBehavior extends Behavior
      * - Delete old related models, which not exist in POST array.
      * - Create new related models, which not exist in database.
      * - Update owner models for one-to-one relation.
-     *
-     * @throws Exception
-     * @throws \Exception
-     * @throws \yii\db\Exception
      */
     public function saveData()
     {
@@ -300,7 +291,7 @@ class RelationBehavior extends Behavior
                     }
                     if (!$model->save()) {
                         Yii::$app->getDb()->getTransaction()->rollBack();
-                        throw new Exception('Model ' . $model::className() . ' not saved due to unknown error');
+                        throw new RelationException('Model ' . $model::className() . ' not saved due to unknown error');
                     }
                 }
             }
@@ -309,7 +300,7 @@ class RelationBehavior extends Behavior
                 if ($this->isDeletedModel($model, $attribute)) {
                     if (!$model->delete()) {
                         Yii::$app->getDb()->getTransaction()->rollBack();
-                        throw new Exception('Model ' . $model::className() . ' not deleted due to unknown error');
+                        throw new RelationException('Model ' . $model::className() . ' not deleted due to unknown error');
                     }
                 }
             }
@@ -329,7 +320,7 @@ class RelationBehavior extends Behavior
             $this->detach();
             if (!$model->save()) {
                 Yii::$app->getDb()->getTransaction()->rollBack();
-                throw new Exception('Owner-model ' . $model::className() . ' not saved due to unknown error');
+                throw new RelationException('Owner-model ' . $model::className() . ' not saved due to unknown error');
             }
         }
     }
@@ -387,11 +378,7 @@ class RelationBehavior extends Behavior
     }
 
     /**
-     * Delete related models. Rollback transaction and throw Exception, if error occurred while deleting.
-     *
-     * @throws Exception
-     * @throws \Exception
-     * @throws \yii\db\Exception
+     * Delete related models. Rollback transaction and throw RelationException, if error occurred while deleting.
      */
     public function afterDelete()
     {
@@ -410,7 +397,7 @@ class RelationBehavior extends Behavior
             foreach ($models as $model) {
                 if (!$model->delete()) {
                     Yii::$app->getDb()->getTransaction()->rollBack();
-                    throw new Exception('Model ' . $model::className() . ' not deleted due to unknown error');
+                    throw new RelationException('Model ' . $model::className() . ' not deleted due to unknown error');
                 }
             }
         }
