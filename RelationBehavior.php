@@ -51,7 +51,7 @@ class RelationBehavior extends Behavior
     /**
      * @var bool Indices finish of all saving operations 
      */
-    public $relationalFinished = false;
+    protected $relationalFinished = false;
 
     /**
      * @var array Relation attributes data.
@@ -72,13 +72,23 @@ class RelationBehavior extends Behavior
     }
 
     /**
-     * Return relation field data
-     * @param $name
+     * Return relation data of attribute
+     * @param $attribute string
      * @return mixed|null
      */
-    public function getRelationFieldData($name)
+    public function getRelationData($attribute)
     {
-        return isset($this->relationalData[$name]) ? $this->relationalData[$name]['data'] : null;
+        return isset($this->relationalData[$attribute]) ? $this->relationalData[$attribute]['data'] : null;
+    }
+
+
+    /**
+     * Return saving state of relation data finished or not
+     * @return bool 
+     */
+    public function getRelationalFinished()
+    {
+        return $this->relationalFinished;
     }
 
     /**
