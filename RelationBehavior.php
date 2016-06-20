@@ -86,7 +86,7 @@ class RelationBehavior extends Behavior
      * Return saving state of relation data finished or not
      * @return bool 
      */
-    public function getRelationalFinished()
+    public function isRelationalFinished()
     {
         return $this->relationalFinished;
     }
