@@ -2,14 +2,16 @@
 
 namespace notamedia\relation\tests\unit;
 
-use Codeception\Scenario;
-use Codeception\TestCase\Cest;
 use notamedia\relation\RelationBehavior;
 use yii\codeception\TestCase;
 use yii\db\ActiveRecord;
 
+/**
+ * Интеграционный тест поведения RelationBehavior
+ */
 class RelationBehaviorIntegrationTest extends TestCase
 {
+    /** @var string */
     public $appConfig = '@tests/unit/_config.php';
 
     /** @var  ActiveRecord */
@@ -120,7 +122,7 @@ class RelationBehaviorIntegrationTest extends TestCase
 
     /**
      * Тест вызова методов-обработчиков при добавлении модели
-     * 
+     *
      * - ожидается разовый вызов метода-обработчика RelationBehavior::beforeSave
      * - ожидается разовый вызов метода-обработчика RelationBehavior::afterSave
      */

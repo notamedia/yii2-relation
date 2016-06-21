@@ -11,6 +11,7 @@ use yii\db\ActiveRecord;
  */
 class RelationBehaviorTest extends TestCase
 {
+    /** @var string  */
     public $appConfig = '@tests/unit/_config.php';
 
     /** @inheritdoc */
