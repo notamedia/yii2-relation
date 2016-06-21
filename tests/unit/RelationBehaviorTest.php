@@ -13,52 +13,53 @@ class RelationBehaviorTest extends TestCase
 {
     public $appConfig = '@tests/unit/_config.php';
 
-    protected $validFields = [
-        'file',
-    ];
-
-    protected $invalidFields = [
-        'image',
-    ];
-
-    /** @var  FakeNewsModel */
-    protected $model;
-
-    /** @var  RelationBehavior */
-    protected $behavior;
-
     /** @inheritdoc */
     protected function setUp()
     {
         parent::setUp();
+    }
 
+    /** @see RelationBehavior::getRelationData */
+    public function testGetRelationData()
+    {
         $model = $this->createModel();
+        $behavior = $model->getBehavior(0);
 
-        $this->model = $model;
-        $this->behavior = $this->model->getBehavior(0);
+        $data = [['src' => '/images/image.new.png']];
+
+        $model->images = $data;
+
+        $this->assertEquals($data, $behavior->getRelationData('images'));
     }
 
     /** @see RelationBehavior::canSetProperty */
     public function testCanSetProperty()
     {
-        // валидные поля
-        foreach ($this->validFields as $fieldCode) {
-            $this->assertTrue($this->behavior->canSetProperty($fieldCode));
+        $model = $this->createModel();
+        $behavior = $model->getBehavior(0);
+
+        // valid fields
+        $validFields = [
+            'file',
+            'images',
+        ];
+        foreach ($validFields as $fieldCode) {
+            $this->assertTrue($behavior->canSetProperty($fieldCode));
         }
 
-        // невалидные поля
-        foreach ($this->invalidFields as $fieldCode) {
-            $this->assertFalse($this->behavior->canSetProperty($fieldCode));
+        // invalid fields
+        $invalidFields = [
+            'name',
+            'image',
+        ];
+        foreach ($invalidFields as $fieldCode) {
+            $this->assertFalse($behavior->canSetProperty($fieldCode));
         }
     }
 
     /** @see RelationBehavior::__set */
     public function testSetters()
     {
-        /** @var ActiveRecord|\PHPUnit_Framework_MockObject_MockObject $mockNotifyPusher $mockModel */
-        $mockModel = $this->getMock(FakeNewsModel::class, ['addError']);
-        $behavior = $mockModel->getBehavior(0);
-
         $model = $this->createModel();
         $behavior = $model->getBehavior(0);
 

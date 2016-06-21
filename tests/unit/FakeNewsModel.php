@@ -85,4 +85,12 @@ class FakeNewsModel extends ActiveRecord
     {
         return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles');
     }
+
+    /** @inheritdoc */
+    public function transactions()
+    {
+        return [
+            $this->getScenario() => static::OP_ALL
+        ];
+    }
 }
