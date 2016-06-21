@@ -6,7 +6,7 @@ use notamedia\relation\RelationBehavior;
 use yii\db\ActiveRecord;
 
 /**
- *
+ * Тестовая модель Новости
  */
 class FakeNewsModel extends ActiveRecord
 {
