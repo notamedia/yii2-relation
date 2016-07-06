@@ -272,6 +272,8 @@ class RelationBehaviorTest extends TestCase
         );
         $method->setAccessible(true);
         $method->invoke($behavior);
+
+        FakeFilesModel::deleteAll();
     }
 
     /** @see RelationBehavior::validateData */
