@@ -7,7 +7,7 @@ use yii\codeception\TestCase;
 use yii\db\ActiveRecord;
 
 /**
- * Интеграционный тест поведения RelationBehavior
+ * Integration test for RelationBehavior
  */
 class RelationBehaviorIntegrationTest extends TestCase
 {
@@ -36,12 +36,12 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Тест сохраннеия модели и свзанныйх сущностей
+     * Test saving models and related entities
      *
-     * - сохранение прошло успешно, метод save вернул true
-     * - атрибуты модели из БД после сохранения идентична сохраняемой модели
-     * - обновление связанныйх сущностей завершилось без ошибок
-     * - связанные сущности совпадают с сохраняемыми
+     * - save is successful, method save returned true
+     * - saving model attributes equals  saved model attributes
+     * - update of related entities was completed without errors
+     * - related entities equals with saved models
      */
     public function testSaveModels()
     {
@@ -66,10 +66,10 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Тест на удаление модели и связанных с моделью сущностей
+     * Test deleting model and related entity model
      *
-     * - метод delete модели вернул значение отличное от false
-     * - связанные сущности удалены из БД
+     * - method save returned value other than false
+     * - related entities deleted from the database
      * @throws \Exception
      */
     public function testDeleteModels()
@@ -84,12 +84,12 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     *  Тест на добавление/удаление связанныйх сущностей
+     *  Test adding/removing related entities
      *
-     *  - сохранение модели вернуло true
-     *  - обновление связанныйх сущностей завершилось без ошибок
-     *  - удаленная сущность удалена из БД
-     *  - список изображений добавленных/изменненых совпадает со входным списком
+     *  - save returned true
+     *  - updating of related entities was completed without errors
+     *  - removed entity is removed from the database
+     *  - list of added / modified images equals with the input list
      */
     public function testUpdateModels()
     {
@@ -121,10 +121,10 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Тест вызова методов-обработчиков при добавлении модели
+     * Test calling handlers when adding model
      *
-     * - ожидается разовый вызов метода-обработчика RelationBehavior::beforeSave
-     * - ожидается разовый вызов метода-обработчика RelationBehavior::afterSave
+     * - expected one-time calling handler RelationBehavior::beforeSave
+     * - expected one-time calling handler RelationBehavior::afterSave
      */
     public function testTriggerEventInsert()
     {
@@ -153,9 +153,10 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Тест вызова методов-обработчиков при обновлении модели
-     * - ожидается разовый вызов метода-обработчика RelationBehavior::beforeSave
-     * - ожидается разовый вызов метода-обработчика RelationBehavior::afterSave
+     * Test calling handlers when update model
+     *
+     * - expected one-time calling handler RelationBehavior::beforeSave
+     * - expected one-time calling handler RelationBehavior::afterSave
      */
     public function testTriggerEventUpdate()
     {
@@ -184,9 +185,9 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Тест вызова методов-обработчиков при удалении модели
+     * Test calling handlers when delete model
      *
-     * - ожидается разовый вызов метода-обработчика RelationBehavior::afterDelete
+     * - expected one-time calling handler RelationBehavior::afterDelete
      */
     public function testTriggerEventDelete()
     {

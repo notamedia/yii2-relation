@@ -3,11 +3,11 @@
 namespace notamedia\relation\tests\unit;
 
 use notamedia\relation\RelationBehavior;
+use notamedia\relation\RelationException;
 use yii\codeception\TestCase;
-use yii\db\ActiveRecord;
 
 /**
- * Unit-тест для RelationBehavior
+ * Unit-test for RelationBehavior
  */
 class RelationBehaviorTest extends TestCase
 {
@@ -23,12 +23,13 @@ class RelationBehaviorTest extends TestCase
     /** @see RelationBehavior::getRelationData */
     public function testGetRelationData()
     {
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['images']
+        ]);
 
         $data = [['src' => '/images/image.new.png']];
 
-        $model->images = $data;
+        $behavior->images = $data;
 
         $this->assertEquals($data, $behavior->getRelationData('images'));
     }
@@ -36,8 +37,9 @@ class RelationBehaviorTest extends TestCase
     /** @see RelationBehavior::canSetProperty */
     public function testCanSetProperty()
     {
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['file', 'images'],
+        ]);
 
         // valid fields
         $validFields = [
@@ -61,17 +63,26 @@ class RelationBehaviorTest extends TestCase
     /** @see RelationBehavior::__set */
     public function testSetters()
     {
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMock(FakeNewsModel::className(), ['addError', 'getErrors']);
+        $mockModel->expects($this->once())->method('addError');
+        $mockModel->expects($this->any())->method('getErrors')->willReturn(['file' => ['File is invalid']]);
+
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['file'],
+        ]);
+        $behavior->owner = $mockModel;
+
+        $mockModel->detachBehaviors();
+        $mockModel->attachBehavior('rel', $behavior);
 
         $validData = [
-            'name' => 'News',
             'file' => [
                 'src' => '/upload/test.new.png',
             ]
         ];
         foreach ($validData as $field => $value) {
-            $model->$field = $value;
+            $behavior->$field = $value;
         }
 
         $this->assertAttributeEquals([
@@ -80,37 +91,43 @@ class RelationBehaviorTest extends TestCase
             ]
         ], 'relationalData', $behavior);
 
-        $nameField = 'name';
-        $this->assertEquals($validData['name'], $model->$nameField);
-
         $invalidData = [
-            'name' => 'News',
             'file' => '/upload/bad.value.png',
         ];
 
         foreach ($invalidData as $field => $value) {
-            $model->$field = $value;
-
+            $behavior->$field = $value;
         }
 
-        $this->assertNotEmpty($model->getErrors());
-        $this->assertArrayHasKey('file', $model->getErrors());
+        $this->assertNotEmpty($behavior->owner->getErrors());
+        $this->assertArrayHasKey('file', $behavior->owner->getErrors());
+
+        // set behavior properties
+        $behavior->relationalFields = ['file', 'images'];
+        $this->assertAttributeEquals(['file', 'images'], 'relationalFields', $behavior);
     }
 
-    /** @see RelationBehavior::loadData */
-    public function testLoadData()
+    /**
+     * Test load data one-to-one relation
+     * @see RelationBehavior::loadData
+     */
+    public function testLoadDataOneToOne()
     {
-        // one-to-one
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMock(FakeNewsModel::className(), ['getFile', 'getImage']);
 
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
+        $activeQuery = $mockModel->hasOne(FakeFilesModel::className(), ['id' => 'file_id']);
+        $mockModel->expects($this->any())->method('getFile')->willReturn($activeQuery);
 
-        $file = new FakeFilesModel([
-            'src' => '/images/file2.png',
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['file', 'image'],
         ]);
-        $file->save();
+        $behavior->owner = $mockModel;
 
-        $model->file = ['src' => $file->src];
+        $mockModel->detachBehaviors();
+        $mockModel->attachBehavior('rel', $behavior);
+
+        $behavior->file = ['src' => '/images/file2.png'];
 
         $method = new \ReflectionMethod(
             $behavior, 'loadData'
@@ -118,12 +135,11 @@ class RelationBehaviorTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($behavior);
 
-        $activeQuery = $behavior->owner->getFile();
         $expected = [
             'file' => [
                 'activeQuery' => $activeQuery,
                 'newModels' => [
-                    new FakeFilesModel(['src' => $file->src]),
+                    new FakeFilesModel(['src' => '/images/file2.png']),
                 ],
                 'oldModels' => $activeQuery->all(),
             ]
@@ -132,30 +148,37 @@ class RelationBehaviorTest extends TestCase
         $this->assertAttributeEquals(
             $expected, 'relationalData', $behavior
         );
+    }
 
-        // one-to-many
-
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
-
-        $images = [];
-
-        $image = new FakeFilesModel([
-            'src' => '/images/image1.png',
+    /**
+     * Test load data one-to-many relation
+     * @see RelationBehavior::loadData
+     */
+    public function testLoadDataOneToMany()
+    {
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['images'],
         ]);
-        $image->save();
-        $images[] = ['src' => $image->src];
 
-        $image = new FakeFilesModel([
-            'src' => '/images/image2.png',
-        ]);
-        $image->save();
-        $images[] = ['src' => $image->src];
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMock(FakeNewsModel::className(), ['getImages']);
+        $mockModel->id = 1;
+
+        $activeQuery = $mockModel->hasMany(FakeFilesModel::className(), ['entity_id' => 'id']);
+        $mockModel->expects($this->any())->method('getImages')->willReturn($activeQuery);
+
+        $behavior->owner = $mockModel;
+
+        $mockModel->detachBehaviors();
+        $mockModel->attachBehavior('rel', $behavior);
+
+        $images = [
+            ['src' => '/images/image1.png'],
+            ['src' => '/images/image2.png'],
+        ];
 
         // set one-to-many relation
-        $model->images = $images;
-
-        $activeQuery = $behavior->owner->getImages();
+        $behavior->images = $images;
         $expected = [
             'images' => [
                 'activeQuery' => $activeQuery,
@@ -164,7 +187,7 @@ class RelationBehaviorTest extends TestCase
         ];
         /** @var FakeFilesModel $image */
         foreach ($images as $image) {
-            $expected['images']['newModels'][] = new FakeFilesModel(array_merge(['entity_id' => $model->id], $image));
+            $expected['images']['newModels'][] = new FakeFilesModel(array_merge(['entity_id' => $mockModel->id], $image));
         }
 
         $method = new \ReflectionMethod(
@@ -176,27 +199,44 @@ class RelationBehaviorTest extends TestCase
         $this->assertAttributeEquals(
             $expected, 'relationalData', $behavior
         );
+    }
 
-        // many-to-many
+    /**
+     * Test load data many-to-many relation
+     * @see RelationBehavior::loadData
+     */
+    public function testLoadDataManyToMany()
+    {
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMock(FakeNewsModel::className(), ['getNewsFiles', 'getNews_files', 'getFiles']);
+        $mockModel->id = 1;
 
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
+        $mockModel->expects($this->any())->method('getNewsFiles')->willReturn($mockModel->hasMany(FakeNewsFilesModel::className(), ['news_id' => 'id']));
 
-        $files = [];
-        $file = new FakeFilesModel([
-            'src' => '/images/file1.png',
+        $activeQuery = $mockModel->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles');
+        $mockModel->expects($this->any())->method('getNews_files')->willReturn($activeQuery);
+        $mockModel->expects($this->any())->method('getFiles')->willReturn($mockModel->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles'));
+
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['news_files', 'files'],
         ]);
-        $file->save();
-        $files[] = $file->id;
-        $file = new FakeFilesModel([
-            'src' => '/images/file2.png',
-        ]);
-        $file->save();
-        $files[] = $file->id;
+        $behavior->owner = $mockModel;
 
-        $oldModels = $model->getNewsFiles()->all();
+        $mockModel->detachBehaviors();
+        $mockModel->attachBehavior('rel', $behavior);
 
-        $model->news_files = $files;
+        $file_ids = [];
+        $files = [
+            ['src' => '/images/new.image1.png'],
+            ['src' => '/images/new.image2.png'],
+        ];
+        foreach ($files as $data) {
+            $file_ids[] = $this->createFile($data);
+        }
+
+        $oldModels = $behavior->owner->getNewsFiles()->all();
+
+        $behavior->news_files = $file_ids;
 
         $method = new \ReflectionMethod(
             $behavior, 'loadData'
@@ -204,7 +244,6 @@ class RelationBehaviorTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($behavior);
 
-        $activeQuery = $behavior->owner->getNews_files();
         $expected = [
             'news_files' => [
                 'activeQuery' => $activeQuery,
@@ -214,38 +253,53 @@ class RelationBehaviorTest extends TestCase
                 'relatedColumn' => 'file_id',
             ]
         ];
-        foreach ($files as $file) {
+        foreach ($file_ids as $file) {
             $expected['news_files']['newModels'][] = new FakeNewsFilesModel(['file_id' => $file]);
         }
-        foreach ($oldModels as $oldModel) {
-            $expected['news_files']['oldModels'] = $oldModels;
-        }
+
+        $expected['news_files']['oldModels'] = $oldModels;
 
         $this->assertAttributeEquals(
             $expected, 'relationalData', $behavior
         );
 
+        $this->expectException(RelationException::class);
+        $this->expectExceptionMessage('Related records for attribute files not found');
 
+        $behavior->files = [100, 101];
+        $method = new \ReflectionMethod(
+            $behavior, 'loadData'
+        );
+        $method->setAccessible(true);
+        $method->invoke($behavior);
     }
 
     /** @see RelationBehavior::validateData */
     public function testValidateData()
     {
-        // create additional files
-        $files = [];
-        $file = new FakeFilesModel([
-            'src' => '/images/file1.png',
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['file', 'images'],
         ]);
-        $file->save();
-        $files[] = $file->id;
-        $file = new FakeFilesModel([
-            'src' => '/images/file2.png',
-        ]);
-        $file->save();
-        $files[] = $file->id;
+
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMock(FakeNewsModel::className(), ['getErrors', 'addError', 'getFile', 'getImages']);
+        $mockModel->expects($this->any())->method('addError');
+        $mockModel->expects($this->any())->method('getErrors')->willReturn([]);
+
+        $activeQuery = $mockModel->hasOne(FakeFilesModel::className(), ['id' => 'file_id']);
+        $mockModel->expects($this->any())->method('getFile')->willReturn($activeQuery);
+
+        $activeQuery = $mockModel->hasMany(FakeFilesModel::className(), ['entity_id' => 'id']);
+        $mockModel->expects($this->any())->method('getImages')->willReturn($activeQuery);
+
+        $mockModel->id = 1;
+
+        $behavior->owner = $mockModel;
+
+        $mockModel->detachBehaviors();
+        $mockModel->attachBehavior('rel', $behavior);
 
         // success
-
         $validData = [
             'file' => ['src' => '/images/file.png'],
             'images' => [
@@ -256,10 +310,7 @@ class RelationBehaviorTest extends TestCase
 
         foreach ($validData as $field => $data) {
 
-            $model = $this->createModel();
-            $behavior = $model->getBehavior(0);
-
-            $model->$field = $data;
+            $behavior->$field = $data;
 
             $method = new \ReflectionMethod(
                 $behavior, 'loadData'
@@ -278,6 +329,25 @@ class RelationBehaviorTest extends TestCase
         $this->assertEmpty($behavior->owner->getErrors());
 
         // fail
+        $mockModel = $this->getMock(FakeNewsModel::className(), ['getErrors', 'addError', 'getFile', 'getImages']);
+        $mockModel->expects($this->any())->method('addError');
+        $mockModel->expects($this->any())->method('getErrors')->willReturn([
+            'file' => ['File is invalid'],
+            'images' => ['Images is invalid'],
+        ]);
+
+        $activeQuery = $mockModel->hasOne(FakeFilesModel::className(), ['id' => 'file_id']);
+        $mockModel->expects($this->any())->method('getFile')->willReturn($activeQuery);
+
+        $activeQuery = $mockModel->hasMany(FakeFilesModel::className(), ['entity_id' => 'id']);
+        $mockModel->expects($this->any())->method('getImages')->willReturn($activeQuery);
+
+        $mockModel->id = 1;
+
+        $behavior->owner = $mockModel;
+
+        $mockModel->detachBehaviors();
+        $mockModel->attachBehavior('rel', $behavior);
 
         $invalidData = [
             'file' => ['src' => ''],
@@ -289,10 +359,7 @@ class RelationBehaviorTest extends TestCase
 
         foreach ($invalidData as $field => $data) {
 
-            $model = $this->createModel();
-            $behavior = $model->getBehavior(0);
-
-            $model->$field = $data;
+            $behavior->$field = $data;
 
             $method = new \ReflectionMethod(
                 $behavior, 'loadData'
@@ -309,136 +376,91 @@ class RelationBehaviorTest extends TestCase
         }
 
         $this->assertNotEmpty($behavior->owner->getErrors());
-
     }
 
     /** @see RelationBehavior::replaceExistingModel */
     public function testReplaceExistingModel()
     {
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
-
-        $expected = [];
-
-        $images = [];
-        foreach ($model->images as $image) {
-            $images[] = [
-                'entity_id' => $image->entity_id,
-                'src' => $image->src,
-            ];
-
-            $expected[] = $image;
-        }
-
-        $data = ['src' => '/images/image.new.png', 'entity_id' => $model->id];
-        $images[] = $data;
-
-        $expected[] = new FakeFilesModel($data);
-
-        $model->images = $images;
-
-        $method = new \ReflectionMethod(
-            $behavior, 'loadData'
-        );
-        $method->setAccessible(true);
-        $method->invoke($behavior);
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['images'],
+        ]);
 
         $prop = new \ReflectionProperty(
             $behavior,
             'relationalData'
         );
-        $prop->setAccessible(true);
-        $relationalDataValue = $prop->getValue($behavior);
 
-        $this->assertEquals($expected, $relationalDataValue['images']['newModels'], $behavior);
+        $images = [
+            new FakeFilesModel(['id' => 1, 'src' => '/upload/image1.png']),
+            new FakeFilesModel(['id' => 2, 'src' => '/upload/image2.png']),
+            new FakeFilesModel(['id' => 3, 'src' => '/upload/image3.png']),
+        ];
+
+        $oldModel = new FakeFilesModel(['src' => '/upload/image2.png']);
+        $newModel = new FakeFilesModel(['src' => '/upload/image4.png']);
+
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'images' => [
+                'oldModels' => $images
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'replaceExistingModel'
+        );
+        $method->setAccessible(true);
+
+        $this->assertEquals($images[1], $method->invokeArgs($behavior, [$oldModel, 'images']));
+        $this->assertEquals($newModel, $method->invokeArgs($behavior, [$newModel, 'images']));
     }
 
     /** @see RelationBehavior::isDeletedModel */
     public function testIsDeletedModel()
     {
-        $model = $this->createModel();
-        $behavior = $model->getBehavior(0);
-
-        $expected = [];
-
-        $images = [];
-
-        foreach ($model->images as $image) {
-            $images[] = [
-                'entity_id' => $image->entity_id,
-                'src' => $image->src,
-            ];
-            $expected[] = $image;
-        }
-
-        array_pop($images);
-        $deletedModel = array_pop($expected);
-
-        $data = ['src' => '/images/image.new.png', 'entity_id' => $model->id];
-
-        $images[] = $data;
-
-        $expected[] = new FakeFilesModel(['src' => '/images/image.new.png', 'entity_id' => $model->id]);
-
-        $model->images = $images;
-
-        $method = new \ReflectionMethod(
-            $behavior, 'loadData'
-        );
-        $method->setAccessible(true);
-        $method->invoke($behavior);
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['images'],
+        ]);
 
         $prop = new \ReflectionProperty(
             $behavior,
             'relationalData'
         );
-        $prop->setAccessible(true);
-        $relationalDataValue = $prop->getValue($behavior);
 
-        $this->assertEquals($expected, $relationalDataValue['images']['newModels'], $behavior);
+        $images = [
+            new FakeFilesModel(['id' => 1, 'src' => '/upload/image1.png']),
+            new FakeFilesModel(['id' => 2, 'src' => '/upload/image2.png']),
+            new FakeFilesModel(['id' => 3, 'src' => '/upload/image3.png']),
+        ];
+
+        $deletedImage = array_pop($images);
+
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'images' => [
+                'newModels' => $images
+            ]
+        ]);
 
         $method = new \ReflectionMethod(
             $behavior, 'isDeletedModel'
         );
         $method->setAccessible(true);
 
-        $this->assertTrue($method->invokeArgs($behavior, [$deletedModel, 'images']));
-
-        foreach ($expected as $model) {
-            $this->assertFalse($method->invokeArgs($behavior, [$model, 'images']));
+        $this->assertTrue($method->invokeArgs($behavior, [$deletedImage, 'images']));
+        foreach ($images as $image) {
+            $this->assertFalse($method->invokeArgs($behavior, [$image, 'images']));
         }
     }
 
     /**
-     * @return FakeNewsModel
+     * @param string $src
+     * @return mixed
      */
-    protected function createModel()
+    protected function createFile($data = [])
     {
-        $file = new FakeFilesModel([
-            'src' => '/images/test.png',
-        ]);
+        $file = new FakeFilesModel($data);
         $file->save(false);
-
-        $model = new FakeNewsModel([
-            'name' => 'News',
-            'file_id' => $file->id,
-        ]);
-        $model->save(false);
-
-        $image = new FakeFilesModel([
-            'src' => '/images/images1.png',
-            'entity_id' => $model->id,
-        ]);
-        $image->save(false);
-
-        $image = new FakeFilesModel([
-            'src' => '/images/images2.png',
-            'entity_id' => $model->id,
-        ]);
-        $image->save(false);
-
-        (new FakeNewsFilesModel(['news_id' => $model->id, 'file_id' => $file->id]))->save();
-
-        return $model;
+        return $file->id;
     }
 }
