@@ -7,20 +7,18 @@ use notamedia\relation\RelationException;
 use yii\codeception\TestCase;
 
 /**
- * Unit-test for RelationBehavior
+ * Unit-tests for RelationBehavior
  */
 class RelationBehaviorTest extends TestCase
 {
     /** @var string  */
     public $appConfig = '@tests/unit/_config.php';
 
-    /** @inheritdoc */
-    protected function setUp()
-    {
-        parent::setUp();
-    }
-
-    /** @see RelationBehavior::getRelationData */
+    /**
+     * Testing method getRelationData()
+     * - contains correct data after setting attribute
+     * @see RelationBehavior::getRelationData
+     */
     public function testGetRelationData()
     {
         $behavior = new RelationBehavior([
@@ -34,7 +32,12 @@ class RelationBehaviorTest extends TestCase
         $this->assertEquals($data, $behavior->getRelationData('images'));
     }
 
-    /** @see RelationBehavior::canSetProperty */
+    /**
+     * Testing method canSetProperty()
+     * - return true for valid data
+     * - return false for invalid data
+     * @see RelationBehavior::canSetProperty
+     */
     public function testCanSetProperty()
     {
         $behavior = new RelationBehavior([
@@ -60,7 +63,12 @@ class RelationBehaviorTest extends TestCase
         }
     }
 
-    /** @see RelationBehavior::__set */
+    /**
+     * Testing setters
+     * - contains correct relationalData after setting valid data
+     * - contains empty relationalData after setting invalid data
+     * @see RelationBehavior::__set
+     */
     public function testSetters()
     {
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
@@ -72,9 +80,6 @@ class RelationBehaviorTest extends TestCase
             'relationalFields' => ['file'],
         ]);
         $behavior->owner = $mockModel;
-
-        $mockModel->detachBehaviors();
-        $mockModel->attachBehavior('rel', $behavior);
 
         $validData = [
             'file' => [
@@ -91,6 +96,11 @@ class RelationBehaviorTest extends TestCase
             ]
         ], 'relationalData', $behavior);
 
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['file'],
+        ]);
+        $behavior->owner = $mockModel;
+
         $invalidData = [
             'file' => '/upload/bad.value.png',
         ];
@@ -99,16 +109,12 @@ class RelationBehaviorTest extends TestCase
             $behavior->$field = $value;
         }
 
-        $this->assertNotEmpty($behavior->owner->getErrors());
-        $this->assertArrayHasKey('file', $behavior->owner->getErrors());
-
-        // set behavior properties
-        $behavior->relationalFields = ['file', 'images'];
-        $this->assertAttributeEquals(['file', 'images'], 'relationalFields', $behavior);
+        $this->assertAttributeEmpty('relationalData', $behavior);
     }
 
     /**
-     * Test load data one-to-one relation
+     * Testing method loadData() for one-to-one relation
+     * - attribute relationalData must be correct
      * @see RelationBehavior::loadData
      */
     public function testLoadDataOneToOne()
@@ -123,9 +129,6 @@ class RelationBehaviorTest extends TestCase
             'relationalFields' => ['file', 'image'],
         ]);
         $behavior->owner = $mockModel;
-
-        $mockModel->detachBehaviors();
-        $mockModel->attachBehavior('rel', $behavior);
 
         $behavior->file = ['src' => '/images/file2.png'];
 
@@ -151,7 +154,8 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Test load data one-to-many relation
+     * Testing method loadData() for one-to-many relation
+     * - attribute relationalData must be correct
      * @see RelationBehavior::loadData
      */
     public function testLoadDataOneToMany()
@@ -168,9 +172,6 @@ class RelationBehaviorTest extends TestCase
         $mockModel->expects($this->any())->method('getImages')->willReturn($activeQuery);
 
         $behavior->owner = $mockModel;
-
-        $mockModel->detachBehaviors();
-        $mockModel->attachBehavior('rel', $behavior);
 
         $images = [
             ['src' => '/images/image1.png'],
@@ -202,7 +203,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Test load data many-to-many relation
+     * Testing method loadData() for one-to-many relation
+     * - attribute relationalData must be correct
+     * - expecting exception if model does not exists
      * @see RelationBehavior::loadData
      */
     public function testLoadDataManyToMany()
@@ -221,9 +224,6 @@ class RelationBehaviorTest extends TestCase
             'relationalFields' => ['news_files', 'files'],
         ]);
         $behavior->owner = $mockModel;
-
-        $mockModel->detachBehaviors();
-        $mockModel->attachBehavior('rel', $behavior);
 
         $file_ids = [];
         $files = [
@@ -276,7 +276,14 @@ class RelationBehaviorTest extends TestCase
         FakeFilesModel::deleteAll();
     }
 
-    /** @see RelationBehavior::validateData */
+    /**
+     * Testing method validateData()
+     * - return true for valid data
+     * - model has no errors for valid data
+     * - return false for invalid data
+     * - model has errors for invalid data
+     * @see RelationBehavior::validateData
+     */
     public function testValidateData()
     {
         $behavior = new RelationBehavior([
@@ -297,9 +304,6 @@ class RelationBehaviorTest extends TestCase
         $mockModel->id = 1;
 
         $behavior->owner = $mockModel;
-
-        $mockModel->detachBehaviors();
-        $mockModel->attachBehavior('rel', $behavior);
 
         // success
         $validData = [
@@ -348,9 +352,6 @@ class RelationBehaviorTest extends TestCase
 
         $behavior->owner = $mockModel;
 
-        $mockModel->detachBehaviors();
-        $mockModel->attachBehavior('rel', $behavior);
-
         $invalidData = [
             'file' => ['src' => ''],
             'images' => [
@@ -380,7 +381,12 @@ class RelationBehaviorTest extends TestCase
         $this->assertNotEmpty($behavior->owner->getErrors());
     }
 
-    /** @see RelationBehavior::replaceExistingModel */
+    /**
+     * Testing method replaceExistingModel()
+     * - if added model already exists then return existing model
+     * - if added model does not exists then return new model
+     * @see RelationBehavior::replaceExistingModel
+     */
     public function testReplaceExistingModel()
     {
         $behavior = new RelationBehavior([
@@ -417,7 +423,12 @@ class RelationBehaviorTest extends TestCase
         $this->assertEquals($newModel, $method->invokeArgs($behavior, [$newModel, 'images']));
     }
 
-    /** @see RelationBehavior::isDeletedModel */
+    /**
+     * Testing method isDeletedModel()
+     * - return true for deleted model
+     * - return false for old models
+     * @see RelationBehavior::isDeletedModel
+     */
     public function testIsDeletedModel()
     {
         $behavior = new RelationBehavior([
@@ -456,6 +467,7 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
+     * Create model File
      * @param string $src
      * @return mixed
      */
