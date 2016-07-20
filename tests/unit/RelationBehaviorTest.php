@@ -272,8 +272,6 @@ class RelationBehaviorTest extends TestCase
         );
         $method->setAccessible(true);
         $method->invoke($behavior);
-
-        FakeFilesModel::deleteAll();
     }
 
     /**
@@ -468,7 +466,7 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Create model File
-     * @param string $src
+     * @param array $data
      * @return mixed
      */
     protected function createFile($data = [])
@@ -476,5 +474,13 @@ class RelationBehaviorTest extends TestCase
         $file = new FakeFilesModel($data);
         $file->save(false);
         return $file->id;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    protected function tearDown()
+    {
+        FakeFilesModel::deleteAll();
     }
 }
