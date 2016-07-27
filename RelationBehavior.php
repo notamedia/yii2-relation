@@ -48,7 +48,7 @@ class RelationBehavior extends Behavior
     public $relationalFields = [];
 
     /**
-     * @var bool Indices finish of all saving operations 
+     * @var bool Indices finish of all saving operations
      */
     protected $relationalFinished = false;
 
@@ -82,7 +82,7 @@ class RelationBehavior extends Behavior
 
     /**
      * Return saving state of relation data finished or not. It's will finished after all relations models will saved.
-     * @return bool 
+     * @return bool
      */
     public function isRelationalFinished()
     {
@@ -162,7 +162,16 @@ class RelationBehavior extends Behavior
             $data['newModels'] = [];
             $class = $activeQuery->modelClass;
 
-            if (!ArrayHelper::isAssociative($activeQuery->on) && !empty($activeQuery->on)) {
+            $notAssociativeArrayOn = !ArrayHelper::isAssociative($activeQuery->on) &&
+                !empty($activeQuery->on);
+
+            $notAssociativeArrayViaOn = $activeQuery->multiple &&
+                !empty($activeQuery->via) &&
+                is_object($activeQuery->via[1]) &&
+                !ArrayHelper::isAssociative($activeQuery->via[1]->on) &&
+                !empty($activeQuery->via[1]->on);
+
+            if ($notAssociativeArrayOn || $notAssociativeArrayViaOn) {
                 Yii::$app->getDb()->getTransaction()->rollBack();
                 throw new RelationException('ON condition for attribute ' . $attribute . ' must be associative array');
             }
@@ -192,8 +201,10 @@ class RelationBehavior extends Behavior
                     $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
                     $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
                     $data['junctionTable'] = $junctionModelClass::tableName();
+
                     list($data['junctionColumn']) = array_keys($via->link);
                     list($data['relatedColumn']) = array_values($activeQuery->link);
+                    $junctionColumn = $data['junctionColumn'];
                     $relatedColumn = $data['relatedColumn'];
 
                     if (!empty($data['data'])) {
@@ -204,7 +215,8 @@ class RelationBehavior extends Behavior
                         }
                         // create new junction models
                         foreach ($data['data'] as $relatedModelId) {
-                            $junctionModel = new $junctionModelClass();
+                            $junctionModel = new $junctionModelClass(array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                                [$junctionColumn => $this->owner->getPrimaryKey()]));
                             $junctionModel->$relatedColumn = $relatedModelId;
                             $data['newModels'][] = $junctionModel;
                         }
@@ -312,9 +324,9 @@ class RelationBehavior extends Behavior
                 }
             }
         }
-        
+
         $this->relationalFinished = true;
-        
+
         if ($needSaveOwner) {
             $model = $this->owner;
             $this->detach();
