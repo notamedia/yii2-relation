@@ -162,16 +162,16 @@ class RelationBehavior extends Behavior
             $data['newModels'] = [];
             $class = $activeQuery->modelClass;
 
-            if (
-                (!ArrayHelper::isAssociative($activeQuery->on) && !empty($activeQuery->on)) ||
-                (
-                    $activeQuery->multiple &&
-                    !empty($activeQuery->via) &&
-                    is_object($activeQuery->via[1]) &&
-                    !ArrayHelper::isAssociative($activeQuery->via[1]->on) &&
-                    !empty($activeQuery->via[1]->on)
-                )
-            ) {
+            $notAssociativeArrayOn = !ArrayHelper::isAssociative($activeQuery->on) &&
+                !empty($activeQuery->on);
+
+            $notAssociativeArrayViaOn = $activeQuery->multiple &&
+                !empty($activeQuery->via) &&
+                is_object($activeQuery->via[1]) &&
+                !ArrayHelper::isAssociative($activeQuery->via[1]->on) &&
+                !empty($activeQuery->via[1]->on);
+
+            if ($notAssociativeArrayOn || $notAssociativeArrayViaOn) {
                 Yii::$app->getDb()->getTransaction()->rollBack();
                 throw new RelationException('ON condition for attribute ' . $attribute . ' must be associative array');
             }
