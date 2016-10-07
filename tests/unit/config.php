@@ -1,8 +1,4 @@
 <?php
-$params = array_merge(
-    require(__DIR__ . '/../../../../../common/config/params.php'),
-    require(__DIR__ . '/../../../../../common/config/params-local.php')
-);
 
 return [
     'id' => 'app-tests',
@@ -10,7 +6,6 @@ return [
     'basePath' => \Yii::getAlias('@tests'),
     'runtimePath' => \Yii::getAlias('@tests/_output'),
     'bootstrap' => [],
-    'params' => $params,
     'components' => [
         'db' => [
             'class' => '\yii\db\Connection',

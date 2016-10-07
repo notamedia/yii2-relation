@@ -12,7 +12,7 @@ use yii\db\ActiveRecord;
 class RelationBehaviorIntegrationTest extends TestCase
 {
     /** @var string */
-    public $appConfig = '@tests/unit/_config.php';
+    public $appConfig = '@tests/unit/config.php';
 
     /** @var  ActiveRecord */
     protected $model;

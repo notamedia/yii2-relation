@@ -258,9 +258,9 @@ class RelationBehavior extends Behavior
                     $_errors = $model->getErrors();
                     $errors = [];
 
-                    foreach ($_errors as $attribute => $error) {
-                        if (!$activeQuery->multiple || !isset($activeQuery->link[$attribute])) {
-                            $errors[] = $error;
+                    foreach ($_errors as $relatedAttribute => $error) {
+                        if (!$activeQuery->multiple || !isset($activeQuery->link[$relatedAttribute])) {
+                            $errors[$relatedAttribute] = $error;
                         }
                     }
 
