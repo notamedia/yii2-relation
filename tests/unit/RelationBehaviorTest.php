@@ -254,7 +254,7 @@ class RelationBehaviorTest extends TestCase
             ]
         ];
         foreach ($file_ids as $file) {
-            $expected['news_files']['newModels'][] = new FakeNewsFilesModel(['file_id' => $file]);
+            $expected['news_files']['newModels'][] = new FakeNewsFilesModel(['file_id' => $file, 'news_id' => $mockModel->id]);
         }
 
         $expected['news_files']['oldModels'] = $oldModels;
