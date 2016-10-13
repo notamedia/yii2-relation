@@ -1,2 +1,5 @@
-.idea
-tests/_output/*
+/.idea
+/tests/_output/*
+/vendor
+codecept.phar
+composer.lock

@@ -12,7 +12,7 @@ use yii\codeception\TestCase;
 class RelationBehaviorTest extends TestCase
 {
     /** @var string  */
-    public $appConfig = '@tests/unit/_config.php';
+    public $appConfig = '@tests/unit/config.php';
 
     /**
      * Testing method getRelationData()
