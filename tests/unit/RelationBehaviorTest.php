@@ -72,7 +72,9 @@ class RelationBehaviorTest extends TestCase
     public function testSetters()
     {
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
-        $mockModel = $this->getMock(FakeNewsModel::className(), ['addError', 'getErrors']);
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['addError', 'getErrors'])
+            ->getMock();
         $mockModel->expects($this->once())->method('addError');
         $mockModel->expects($this->any())->method('getErrors')->willReturn(['file' => ['File is invalid']]);
 
@@ -120,7 +122,9 @@ class RelationBehaviorTest extends TestCase
     public function testLoadDataOneToOne()
     {
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
-        $mockModel = $this->getMock(FakeNewsModel::className(), ['getFile', 'getImage']);
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getFile', 'getImage'])
+            ->getMock();
 
         $activeQuery = $mockModel->hasOne(FakeFilesModel::className(), ['id' => 'file_id']);
         $mockModel->expects($this->any())->method('getFile')->willReturn($activeQuery);
@@ -165,7 +169,9 @@ class RelationBehaviorTest extends TestCase
         ]);
 
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
-        $mockModel = $this->getMock(FakeNewsModel::className(), ['getImages']);
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getImages'])
+            ->getMock();
         $mockModel->id = 1;
 
         $activeQuery = $mockModel->hasMany(FakeFilesModel::className(), ['entity_id' => 'id']);
@@ -211,7 +217,9 @@ class RelationBehaviorTest extends TestCase
     public function testLoadDataManyToMany()
     {
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
-        $mockModel = $this->getMock(FakeNewsModel::className(), ['getNewsFiles', 'getNews_files', 'getFiles']);
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getNewsFiles', 'getNews_files', 'getFiles'])
+            ->getMock();
         $mockModel->id = 1;
 
         $mockModel->expects($this->any())->method('getNewsFiles')->willReturn($mockModel->hasMany(FakeNewsFilesModel::className(), ['news_id' => 'id']));
@@ -254,7 +262,7 @@ class RelationBehaviorTest extends TestCase
             ]
         ];
         foreach ($file_ids as $file) {
-            $expected['news_files']['newModels'][] = new FakeNewsFilesModel(['file_id' => $file]);
+            $expected['news_files']['newModels'][] = new FakeNewsFilesModel(['file_id' => $file, 'news_id' => $mockModel->id]);
         }
 
         $expected['news_files']['oldModels'] = $oldModels;
@@ -263,7 +271,7 @@ class RelationBehaviorTest extends TestCase
             $expected, 'relationalData', $behavior
         );
 
-        $this->expectException(RelationException::class);
+        $this->expectException(RelationException::className());
         $this->expectExceptionMessage('Related records for attribute files not found');
 
         $behavior->files = [100, 101];
@@ -289,7 +297,9 @@ class RelationBehaviorTest extends TestCase
         ]);
 
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
-        $mockModel = $this->getMock(FakeNewsModel::className(), ['getErrors', 'addError', 'getFile', 'getImages']);
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getErrors', 'addError', 'getFile', 'getImages'])
+            ->getMock();
         $mockModel->expects($this->any())->method('addError');
         $mockModel->expects($this->any())->method('getErrors')->willReturn([]);
 
@@ -333,7 +343,9 @@ class RelationBehaviorTest extends TestCase
         $this->assertEmpty($behavior->owner->getErrors());
 
         // fail
-        $mockModel = $this->getMock(FakeNewsModel::className(), ['getErrors', 'addError', 'getFile', 'getImages']);
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getErrors', 'addError', 'getFile', 'getImages'])
+            ->getMock();
         $mockModel->expects($this->any())->method('addError');
         $mockModel->expects($this->any())->method('getErrors')->willReturn([
             'file' => ['File is invalid'],

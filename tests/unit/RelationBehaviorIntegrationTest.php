@@ -39,9 +39,13 @@ class RelationBehaviorIntegrationTest extends TestCase
      * Test saving models and related entities
      *
      * - save is successful, method save returned true
+     *
      * - saving model attributes equals  saved model attributes
+     *
      * - update of related entities was completed without errors
+     *
      * - related entities equals with saved models
+     *
      */
     public function testSaveModels()
     {
@@ -69,7 +73,9 @@ class RelationBehaviorIntegrationTest extends TestCase
      * Test deleting model and related entity model
      *
      * - method save returned value other than false
+     *
      * - related entities deleted from the database
+     *
      * @throws \Exception
      */
     public function testDeleteModels()
@@ -87,9 +93,13 @@ class RelationBehaviorIntegrationTest extends TestCase
      *  Test adding/removing related entities
      *
      *  - save returned true
+     *
      *  - updating of related entities was completed without errors
+     *
      *  - removed entity is removed from the database
+     *
      *  - list of added / modified images equals with the input list
+     *
      */
     public function testUpdateModels()
     {
@@ -124,14 +134,15 @@ class RelationBehaviorIntegrationTest extends TestCase
      * Test calling handlers when adding model
      *
      * - expected one-time calling handler RelationBehavior::beforeSave
+     *
      * - expected one-time calling handler RelationBehavior::afterSave
+     *
      */
     public function testTriggerEventInsert()
     {
-        $mockBehavior = $this->getMock(
-            RelationBehavior::class,
-            ['beforeSave', 'afterSave']
-        );
+        $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
+            ->setMethods(['beforeSave', 'afterSave'])
+            ->getMock();
         $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('beforeSave');
@@ -156,14 +167,15 @@ class RelationBehaviorIntegrationTest extends TestCase
      * Test calling handlers when update model
      *
      * - expected one-time calling handler RelationBehavior::beforeSave
+     *
      * - expected one-time calling handler RelationBehavior::afterSave
+     * 
      */
     public function testTriggerEventUpdate()
     {
-        $mockBehavior = $this->getMock(
-            RelationBehavior::class,
-            ['beforeSave', 'afterSave']
-        );
+        $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
+            ->setMethods(['beforeSave', 'afterSave'])
+            ->getMock();
         $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('beforeSave');
@@ -191,10 +203,9 @@ class RelationBehaviorIntegrationTest extends TestCase
      */
     public function testTriggerEventDelete()
     {
-        $mockBehavior = $this->getMock(
-            RelationBehavior::class,
-            ['afterDelete']
-        );
+        $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
+            ->setMethods(['afterDelete'])
+            ->getMock();
         $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('afterDelete');
