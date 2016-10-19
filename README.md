@@ -172,3 +172,50 @@ class Entity extends ActiveRecord
 }
 
 ```
+
+or
+
+```php
+<?php
+
+...
+
+class Entity extends ActiveRecord
+{
+    ...
+    
+    public function rules()
+    {
+        return [
+            [['many_to_many_attribute'], 'safe']
+        ];
+    }
+
+    public function getMany_to_many_attribute()
+    {
+        return $this->hasMany(ManyToManyModel::className(), 
+            ['id' => 'many_to_many_model_id'])
+                ->viaTable('table_many_to_many', ['entity_id' => 'id']);
+    }
+    
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => RelationBehavior::className(),
+                'relationalFields' => ['many_to_many_attribute']
+            ]
+        ];
+    }
+    
+    public function transactions()
+    {
+        return [
+            $this->getScenario() => static::OP_ALL
+        ];
+    }
+    
+    ...
+}
+
+```

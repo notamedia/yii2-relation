@@ -9,7 +9,9 @@ namespace notamedia\relation;
 use yii\base\Behavior;
 use yii\base\ModelEvent;
 use yii\db\ActiveQuery;
+use yii\db\ActiveQueryInterface;
 use yii\db\ActiveRecord;
+use yii\db\Query;
 use yii\helpers\ArrayHelper;
 use Yii;
 
@@ -160,6 +162,9 @@ class RelationBehavior extends Behavior
             $getter = 'get' . ucfirst($attribute);
             $data['activeQuery'] = $activeQuery = $this->owner->$getter();
             $data['newModels'] = [];
+            $data['oldModels'] = [];
+            $data['newRows'] = [];
+            $data['oldRows'] = [];
             $class = $activeQuery->modelClass;
 
             $notAssociativeArrayOn = !ArrayHelper::isAssociative($activeQuery->on) &&
@@ -167,6 +172,7 @@ class RelationBehavior extends Behavior
 
             $notAssociativeArrayViaOn = $activeQuery->multiple &&
                 !empty($activeQuery->via) &&
+                is_array($activeQuery->via) &&
                 is_object($activeQuery->via[1]) &&
                 !ArrayHelper::isAssociative($activeQuery->via[1]->on) &&
                 !empty($activeQuery->via[1]->on);
@@ -193,36 +199,76 @@ class RelationBehavior extends Behavior
                     }
                 } else {
                     // many-to-many
-                    if (!is_object($activeQuery->via[1])) {
-                        throw new RelationException('via condition for attribute ' . $attribute . ' cannot must be object');
-                    }
+                    if ($activeQuery->via instanceof ActiveQueryInterface) { // viaTable
 
-                    $via = $activeQuery->via[1];
-                    $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
-                    $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
-                    $data['junctionTable'] = $junctionModelClass::tableName();
+                        $via = $activeQuery->via;
+                        $data['junctionTable'] = $activeQuery->via->from[0];
 
-                    list($data['junctionColumn']) = array_keys($via->link);
-                    list($data['relatedColumn']) = array_values($activeQuery->link);
-                    $junctionColumn = $data['junctionColumn'];
-                    $relatedColumn = $data['relatedColumn'];
+                        list($data['junctionColumn']) = array_keys($via->link);
+                        list($data['relatedColumn']) = array_values($activeQuery->link);
+                        $junctionColumn = $data['junctionColumn'];
+                        $relatedColumn = $data['relatedColumn'];
 
-                    if (!empty($data['data'])) {
-                        // make sure what all model's ids from POST exists in database
-                        $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
-                        if ($countManyToManyModels != count($data['data'])) {
-                            throw new RelationException('Related records for attribute ' . $attribute . ' not found');
+                        if (!empty($data['data'])) {
+                            // make sure what all row's ids from POST exists in database
+                            $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
+                            if ($countManyToManyModels != count($data['data'])) {
+                                throw new RelationException('Related records for attribute ' . $attribute . ' not found');
+                            }
+                            // create new junction rows
+                            foreach ($data['data'] as $relatedModelId) {
+                                $junctionModel = array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                                    [$junctionColumn => $this->owner->getPrimaryKey()]);
+                                $junctionModel[$relatedColumn] = $relatedModelId;
+                                $data['newRows'][] = $junctionModel;
+                            }
                         }
-                        // create new junction models
-                        foreach ($data['data'] as $relatedModelId) {
-                            $junctionModel = new $junctionModelClass(array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
-                                [$junctionColumn => $this->owner->getPrimaryKey()]));
-                            $junctionModel->$relatedColumn = $relatedModelId;
-                            $data['newModels'][] = $junctionModel;
-                        }
-                    }
 
-                    $data['oldModels'] = $this->owner->$junctionGetter()->all();
+                        if (!empty($this->owner->getPrimaryKey())) {
+                            $data['oldRows'] = (new Query())
+                                ->from($data['junctionTable'])
+                                ->select([
+                                    $junctionColumn,
+                                    $relatedColumn
+                                ])
+                                ->where([
+                                    $junctionColumn => $this->owner->getPrimaryKey(),
+                                ])->all();
+                        }
+
+                    } else { // via
+
+                        if (!is_object($activeQuery->via[1])) {
+                            throw new RelationException('via condition for attribute ' . $attribute . ' cannot must be object');
+                        }
+
+                        $via = $activeQuery->via[1];
+                        $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+                        $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
+                        $data['junctionTable'] = $junctionModelClass::tableName();
+
+                        list($data['junctionColumn']) = array_keys($via->link);
+                        list($data['relatedColumn']) = array_values($activeQuery->link);
+                        $junctionColumn = $data['junctionColumn'];
+                        $relatedColumn = $data['relatedColumn'];
+
+                        if (!empty($data['data'])) {
+                            // make sure what all model's ids from POST exists in database
+                            $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
+                            if ($countManyToManyModels != count($data['data'])) {
+                                throw new RelationException('Related records for attribute ' . $attribute . ' not found');
+                            }
+                            // create new junction models
+                            foreach ($data['data'] as $relatedModelId) {
+                                $junctionModel = new $junctionModelClass(array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                                    [$junctionColumn => $this->owner->getPrimaryKey()]));
+                                $junctionModel->$relatedColumn = $relatedModelId;
+                                $data['newModels'][] = $junctionModel;
+                            }
+                        }
+
+                        $data['oldModels'] = $this->owner->$junctionGetter()->all();
+                    }
                 }
 
             } elseif (!empty($data['data'])) {
@@ -288,6 +334,7 @@ class RelationBehavior extends Behavior
         $needSaveOwner = false;
 
         foreach ($this->relationalData as $attribute => $data) {
+
             /** @var ActiveRecord $model */
             foreach ($data['newModels'] as $model) {
                 if ($model->isNewRecord) {
@@ -308,12 +355,31 @@ class RelationBehavior extends Behavior
                 }
             }
 
+            // only for many-to-many
+            foreach ($data['newRows'] as $row) {
+                $junctionColumn = $data['junctionColumn'];
+                $row[$junctionColumn] = $this->owner->getPrimaryKey();
+                if (!$this->isExistingRow($row, $attribute)) {
+                    Yii::$app->db->createCommand()
+                        ->insert($data['junctionTable'], $row)
+                        ->execute();
+                }
+            }
+
             foreach ($data['oldModels'] as $model) {
                 if ($this->isDeletedModel($model, $attribute)) {
                     if (!$model->delete()) {
                         Yii::$app->getDb()->getTransaction()->rollBack();
                         throw new RelationException('Model ' . $model::className() . ' not deleted due to unknown error');
                     }
+                }
+            }
+
+            foreach ($data['oldRows'] as $row) {
+                if ($this->isDeletedRow($row, $attribute)) {
+                    Yii::$app->db->createCommand()
+                        ->delete($data['junctionTable'], $row)
+                        ->execute();
                 }
             }
 
@@ -364,6 +430,29 @@ class RelationBehavior extends Behavior
     }
 
     /**
+     * Check existing row if it found in old rows
+     *
+     * @param $row
+     * @param $attribute
+     * @return mixed
+     */
+    protected function isExistingRow($row, $attribute)
+    {
+        $rowAttributes = $row;
+        unset($rowAttributes[$this->relationalData['junctionColumn']]);
+
+        foreach ($this->relationalData[$attribute]['oldRows'] as $oldRow) {
+            $oldModelAttributes = $oldRow;
+            unset($oldModelAttributes[$this->relationalData['junctionColumn']]);
+            if ($oldModelAttributes == $rowAttributes) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Check if model was deleted (not found in new models).
      *
      * @param ActiveRecord $model
@@ -382,6 +471,29 @@ class RelationBehavior extends Behavior
             unset($newModelAttributes[$newModel->primaryKey()[0]]);
 
             if ($newModelAttributes == $modelAttributes) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if row was deleted (not found in new rows).
+     *
+     * @param $row
+     * @param $attribute
+     * @return bool
+     */
+    protected function isDeletedRow($row, $attribute)
+    {
+        $rowAttribute = $row;
+        unset($rowAttribute[$this->relationalData[$attribute]['junctionColumn']]);
+
+        foreach ($this->relationalData[$attribute]['newRows'] as $newRow) {
+            $newRowAttributes = $newRow;
+            unset($newRowAttributes[$this->relationalData[$attribute]['junctionColumn']]);
+            if ($newRowAttributes == $rowAttribute) {
                 return false;
             }
         }
