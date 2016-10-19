@@ -439,11 +439,11 @@ class RelationBehavior extends Behavior
     protected function isExistingRow($row, $attribute)
     {
         $rowAttributes = $row;
-        unset($rowAttributes[$this->relationalData['junctionColumn']]);
+        unset($rowAttributes[$this->relationalData[$attribute]['junctionColumn']]);
 
         foreach ($this->relationalData[$attribute]['oldRows'] as $oldRow) {
             $oldModelAttributes = $oldRow;
-            unset($oldModelAttributes[$this->relationalData['junctionColumn']]);
+            unset($oldModelAttributes[$this->relationalData[$attribute]['junctionColumn']]);
             if ($oldModelAttributes == $rowAttributes) {
                 return true;
             }
