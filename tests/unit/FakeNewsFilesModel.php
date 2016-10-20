@@ -19,7 +19,6 @@ class FakeNewsFilesModel extends ActiveRecord
     public function rules()
     {
         return [
-            [['news_id', 'file_id'], 'required'],
             [['news_id', 'file_id'], 'integer'],
         ];
     }

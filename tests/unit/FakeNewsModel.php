@@ -7,6 +7,13 @@ use yii\db\ActiveRecord;
 
 /**
  * Тестовая модель Новости
+ *
+ * @property integer $file_id
+ * @property string $name
+ * @property FakeFilesModel $file
+ * @property FakeFilesModel[] $images
+ * @property FakeFilesModel[] $news_files
+ * @property FakeFilesModel[] $news_files_via_table
  */
 class FakeNewsModel extends ActiveRecord
 {
@@ -22,7 +29,7 @@ class FakeNewsModel extends ActiveRecord
         return [
             [['file_id'], 'integer'],
             ['name', 'string', 'max' => 255],
-            [['file', 'images', 'news_files'], 'safe'],
+            [['file', 'images', 'news_files', 'news_files_via_table'], 'safe'],
         ];
     }
 
@@ -40,7 +47,7 @@ class FakeNewsModel extends ActiveRecord
     /** @inheritdoc */
     public function extraFields()
     {
-        return ['file', 'images', 'news_files'];
+        return ['file', 'images', 'news_files', 'news_files_via_table'];
     }
 
     /** @inheritdoc */
@@ -49,7 +56,7 @@ class FakeNewsModel extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::class,
-                'relationalFields' => ['file', 'images', 'news_files']
+                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table']
             ]
         ];
     }
@@ -84,6 +91,15 @@ class FakeNewsModel extends ActiveRecord
     public function getNews_files()
     {
         return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles');
+    }
+
+    /**
+     * @return $this
+     */
+    public function getNews_files_via_table()
+    {
+        return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->viaTable('news_files_via_table',
+            ['news_id' => 'id']);
     }
 
     /** @inheritdoc */
