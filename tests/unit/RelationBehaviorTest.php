@@ -16,7 +16,9 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method getRelationData()
+     *
      * - contains correct data after setting attribute
+     *
      * @see RelationBehavior::getRelationData
      */
     public function testGetRelationData()
@@ -34,8 +36,10 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method canSetProperty()
+     *
      * - return true for valid data
      * - return false for invalid data
+     *
      * @see RelationBehavior::canSetProperty
      */
     public function testCanSetProperty()
@@ -65,8 +69,10 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing setters
+     *
      * - contains correct relationalData after setting valid data
      * - contains empty relationalData after setting invalid data
+     *
      * @see RelationBehavior::__set
      */
     public function testSetters()
@@ -116,7 +122,9 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method loadData() for one-to-one relation
+     *
      * - attribute relationalData must be correct
+     *
      * @see RelationBehavior::loadData
      */
     public function testLoadDataOneToOne()
@@ -149,6 +157,8 @@ class RelationBehaviorTest extends TestCase
                     new FakeFilesModel(['src' => '/images/file2.png']),
                 ],
                 'oldModels' => $activeQuery->all(),
+                'newRows' => [],
+                'oldRows' => []
             ]
         ];
 
@@ -159,7 +169,9 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method loadData() for one-to-many relation
+     *
      * - attribute relationalData must be correct
+     *
      * @see RelationBehavior::loadData
      */
     public function testLoadDataOneToMany()
@@ -190,6 +202,8 @@ class RelationBehaviorTest extends TestCase
             'images' => [
                 'activeQuery' => $activeQuery,
                 'oldModels' => $activeQuery->all(),
+                'newRows' => [],
+                'oldRows' => []
             ]
         ];
         /** @var FakeFilesModel $image */
@@ -209,13 +223,17 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadData() for one-to-many relation
+     * Testing method loadData() for many-to-many relation
+     *
      * - attribute relationalData must be correct
      * - expecting exception if model does not exists
+     *
      * @see RelationBehavior::loadData
      */
     public function testLoadDataManyToMany()
     {
+        // success
+
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
         $mockModel = $this->getMockBuilder(FakeNewsModel::className())
             ->setMethods(['getNewsFiles', 'getNews_files', 'getFiles'])
@@ -259,6 +277,8 @@ class RelationBehaviorTest extends TestCase
                 'junctionTable' => FakeNewsFilesModel::tableName(),
                 'junctionColumn' => 'news_id',
                 'relatedColumn' => 'file_id',
+                'newRows' => [],
+                'oldRows' => []
             ]
         ];
         foreach ($file_ids as $file) {
@@ -271,6 +291,8 @@ class RelationBehaviorTest extends TestCase
             $expected, 'relationalData', $behavior
         );
 
+        // fail
+
         $this->expectException(RelationException::className());
         $this->expectExceptionMessage('Related records for attribute files not found');
 
@@ -280,14 +302,108 @@ class RelationBehaviorTest extends TestCase
         );
         $method->setAccessible(true);
         $method->invoke($behavior);
+
+        $this->expectException(RelationException::className());
+        $this->expectExceptionMessage('Related records for attribute news_files not found');
+
+        $behavior->news_files = [100, 101];
+        $method = new \ReflectionMethod(
+            $behavior, 'loadData'
+        );
+        $method->setAccessible(true);
+        $method->invoke($behavior);
+    }
+
+    /**
+     * Testing method loadData() for many-to-many relation with viaTable
+     *
+     * - attribute relationalData must be correct
+     * - expecting exception if related rows does not exists
+     */
+    public function testLoadDataManyToManyViaTable()
+    {
+        // success
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getNews_files_via_table'])
+            ->getMock();
+        $mockModel->id = 1;
+
+        $activeQuery = $mockModel->hasMany(FakeFilesModel::className(),
+            ['id' => 'file_id'])->viaTable('news_files_via_table',
+            ['news_id' => 'id']);
+
+        $mockModel->expects($this->any())->method('getNews_files_via_table')->willReturn($activeQuery);
+
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['news_files_via_table'],
+        ]);
+        $behavior->owner = $mockModel;
+
+        $files = [
+            ['src' => '/images/new.image1.png'],
+            ['src' => '/images/new.image2.png'],
+        ];
+        $file_ids = [];
+        foreach ($files as $data) {
+            $file_ids[] = $this->createFile($data);
+        }
+
+        $oldRows = FakeNewsFilesModel::findAll(['news_id' => $mockModel->id]);
+
+        $behavior->news_files_via_table = $file_ids;
+
+        $method = new \ReflectionMethod(
+            $behavior, 'loadData'
+        );
+        $method->setAccessible(true);
+        $method->invoke($behavior);
+
+        $expected = [
+            'news_files_via_table' => [
+                'activeQuery' => $activeQuery,
+                'junctionTable' => 'news_files_via_table',
+                'junctionColumn' => 'news_id',
+                'relatedColumn' => 'file_id',
+                'newModels' => [],
+                'oldModels' => [],
+                'newRows' => [],
+                'oldRows' => []
+            ]
+        ];
+        foreach ($file_ids as $file_id) {
+            $expected['news_files_via_table']['newRows'][] = [
+                'file_id' => $file_id,
+                'news_id' => $mockModel->id
+            ];
+        }
+
+        $expected['news_files_via_table']['oldRows'] = $oldRows;
+
+        $this->assertAttributeEquals(
+            $expected, 'relationalData', $behavior
+        );
+
+        // fail
+        $this->expectException(RelationException::className());
+        $this->expectExceptionMessage('Related records for attribute news_files_via_table not found');
+
+        $behavior->news_files_via_table = [100, 101];
+        $method = new \ReflectionMethod(
+            $behavior, 'loadData'
+        );
+        $method->setAccessible(true);
+        $method->invoke($behavior);
     }
 
     /**
      * Testing method validateData()
+     *
      * - return true for valid data
      * - model has no errors for valid data
      * - return false for invalid data
      * - model has errors for invalid data
+     *
      * @see RelationBehavior::validateData
      */
     public function testValidateData()
@@ -393,8 +509,10 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method replaceExistingModel()
+     *
      * - if added model already exists then return existing model
      * - if added model does not exists then return new model
+     *
      * @see RelationBehavior::replaceExistingModel
      */
     public function testReplaceExistingModel()
@@ -435,8 +553,10 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method isDeletedModel()
+     *
      * - return true for deleted model
      * - return false for old models
+     *
      * @see RelationBehavior::isDeletedModel
      */
     public function testIsDeletedModel()
@@ -477,7 +597,113 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
+     * Testing method isDeletedRow()
+     * 
+     * - return true for deleted row
+     * - return false for old row
+     * 
+     * @see RelationBehavior::isDeletedRows
+     */
+    public function testIsDeletedRow()
+    {
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['news_files_via_table'],
+        ]);
+
+        $prop = new \ReflectionProperty(
+            $behavior,
+            'relationalData'
+        );
+
+        $files = [
+            [
+                'news_id' => 1,
+                'file_id' => 1,
+            ],
+            [
+                'news_id' => 1,
+                'file_id' => 2,
+            ],
+            [
+                'news_id' => 1,
+                'file_id' => 3,
+            ],
+        ];
+
+        $deletedFiles = array_pop($files);
+
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'news_files_via_table' => [
+                'newRows' => $files,
+                'junctionColumn' => 'news_id'
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'isDeletedRow'
+        );
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invokeArgs($behavior, [$deletedFiles, 'news_files_via_table']));
+        foreach ($files as $file) {
+            $this->assertFalse($method->invokeArgs($behavior, [$file, 'news_files_via_table']));
+        }
+    }
+
+    /**
+     * Testing method isExistingRow()
+     * 
+     * - if added row already exists in table then return true
+     * - if added row does not exists in table then return false
+     * 
+     * @see RelationBehavior::isExistingRow
+     */
+    public function testIsExistingRow()
+    {
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['news_files_via_table'],
+        ]);
+
+        $prop = new \ReflectionProperty(
+            $behavior,
+            'relationalData'
+        );
+
+        $files = [
+            [
+                'news_id' => 1,
+                'file_id' => 1,
+            ],
+            [
+                'news_id' => 1,
+                'file_id' => 3,
+            ],
+        ];
+
+        $oldRow = ['news_id' => 1, 'file_id' => 1];
+        $newRow = ['news_id' => 1, 'file_id' => 2];
+
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'news_files_via_table' => [
+                'oldRows' => $files,
+                'junctionColumn' => 'news_id'
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'isExistingRow'
+        );
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invokeArgs($behavior, [$oldRow, 'news_files_via_table']));
+        $this->assertFalse($method->invokeArgs($behavior, [$newRow, 'news_files_via_table']));
+    }
+
+    /**
      * Create model File
+     * 
      * @param array $data
      * @return mixed
      */

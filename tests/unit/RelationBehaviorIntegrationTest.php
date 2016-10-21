@@ -5,6 +5,7 @@ namespace notamedia\relation\tests\unit;
 use notamedia\relation\RelationBehavior;
 use yii\codeception\TestCase;
 use yii\db\ActiveRecord;
+use yii\db\Query;
 
 /**
  * Integration test for RelationBehavior
@@ -22,7 +23,7 @@ class RelationBehaviorIntegrationTest extends TestCase
     {
         parent::setUp();
 
-        $model = $model = new FakeNewsModel();
+        $model = new FakeNewsModel();
 
         $model->name = 'News 1';
         $model->file = ['src' => '/images/file.pdf'];
@@ -30,6 +31,31 @@ class RelationBehaviorIntegrationTest extends TestCase
             ['src' => '/images/image1.png',],
             ['src' => '/images/image2.png',],
         ];
+
+        $files = [
+            ['src' => '/images/file1.png'],
+            ['src' => '/images/file2.png'],
+        ];
+        $fileIds = [];
+        foreach ($files as $data) {
+            $file = new FakeFilesModel($data);
+            $file->save(false);
+            $fileIds[] = $file->id;
+        }
+        $model->news_files = $fileIds;
+
+        $files = [
+            ['src' => '/images/file3.png'],
+            ['src' => '/images/file4.png'],
+        ];
+        $fileIds = [];
+        foreach ($files as $data) {
+            $file = new FakeFilesModel($data);
+            $file->save(false);
+            $fileIds[] = $file->id;
+        }
+        $model->news_files_via_table = $fileIds;
+
         $model->save();
 
         $this->model = $model;
@@ -58,6 +84,18 @@ class RelationBehaviorIntegrationTest extends TestCase
             ['src' => '/images/image2.png',],
         ];
 
+        $files = [
+            ['src' => '/images/file1.png'],
+            ['src' => '/images/file2.png'],
+        ];
+        $fileIds = [];
+        foreach ($files as $data) {
+            $file = new FakeFilesModel($data);
+            $file->save(false);
+            $fileIds[] = $file->id;
+        }
+        $model->news_files_via_table = $fileIds;
+
         $this->assertTrue($model->save());
 
         $savedModel = FakeNewsModel::findOne($model->id);
@@ -66,7 +104,10 @@ class RelationBehaviorIntegrationTest extends TestCase
 
         $this->assertTrue($model->isRelationalFinished());
 
-        $this->assertEquals($model->getImages()->all(), $savedModel->images);
+        $model->refresh();
+
+        $this->assertEquals($model->images, $savedModel->images);
+        $this->assertEquals($model->news_files_via_table, $savedModel->news_files_via_table);
     }
 
     /**
@@ -87,6 +128,7 @@ class RelationBehaviorIntegrationTest extends TestCase
         $this->assertTrue($model->delete() !== false);
 
         $this->assertEmpty(FakeFilesModel::find()->where(['entity_id' => $id])->all());
+        $this->assertEmpty((new Query())->from('news_files_via_table')->where(['news_id' => $id])->all());
     }
 
     /**

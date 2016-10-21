@@ -20,4 +20,10 @@ CREATE TABLE news_files (
   PRIMARY KEY (news_id, file_id)
 );
 
+CREATE TABLE news_files_via_table (
+  news_id INTEGER,
+  file_id INTEGER,
+  PRIMARY KEY (news_id, file_id)
+);
+
 COMMIT;

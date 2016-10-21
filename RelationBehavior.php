@@ -202,7 +202,7 @@ class RelationBehavior extends Behavior
                     if ($activeQuery->via instanceof ActiveQueryInterface) { // viaTable
 
                         $via = $activeQuery->via;
-                        $data['junctionTable'] = $activeQuery->via->from[0];
+                        $data['junctionTable'] = $via->from[0];
 
                         list($data['junctionColumn']) = array_keys($via->link);
                         list($data['relatedColumn']) = array_values($activeQuery->link);
@@ -356,7 +356,7 @@ class RelationBehavior extends Behavior
             }
 
             // only for many-to-many
-            foreach ($data['newRows'] as $row) {
+            $this->relationsMap($data['newRows'], function($row) use ($attribute, $data) {
                 $junctionColumn = $data['junctionColumn'];
                 $row[$junctionColumn] = $this->owner->getPrimaryKey();
                 if (!$this->isExistingRow($row, $attribute)) {
@@ -364,7 +364,7 @@ class RelationBehavior extends Behavior
                         ->insert($data['junctionTable'], $row)
                         ->execute();
                 }
-            }
+            });
 
             foreach ($data['oldModels'] as $model) {
                 if ($this->isDeletedModel($model, $attribute)) {
@@ -375,13 +375,13 @@ class RelationBehavior extends Behavior
                 }
             }
 
-            foreach ($data['oldRows'] as $row) {
+            $this->relationsMap($data['oldRows'], function($row) use ($attribute, $data) {
                 if ($this->isDeletedRow($row, $attribute)) {
                     Yii::$app->db->createCommand()
                         ->delete($data['junctionTable'], $row)
                         ->execute();
                 }
-            }
+            });
 
             if (!$data['activeQuery']->multiple && (count($data['newModels']) == 0 || !$data['newModels'][0]->isNewRecord)) {
                 $needSaveOwner = true;
@@ -400,6 +400,27 @@ class RelationBehavior extends Behavior
                 Yii::$app->getDb()->getTransaction()->rollBack();
                 throw new RelationException('Owner-model ' . $model::className() . ' not saved due to unknown error');
             }
+        }
+    }
+
+    /**
+     * Execute callback for each relation
+     *
+     * - if error occurred throws exception
+     *
+     * @param array $relations
+     * @param callable $callback
+     * @throws RelationException
+     */
+    protected function relationsMap($relations, $callback)
+    {
+        try {
+            if (is_callable($callback)) {
+                array_map($callback, $relations);
+            }
+        } catch (\Exception $e) {
+            Yii::$app->getDb()->getTransaction()->rollBack();
+            throw new RelationException('Owner-model not saved due to unknown error');
         }
     }
 
@@ -511,11 +532,36 @@ class RelationBehavior extends Behavior
             /** @var ActiveQuery $activeQuery */
             $activeQuery = $this->owner->$getter();
 
+            $models = [];
             if (empty($activeQuery->via)) {
                 $models = $activeQuery->all();
             } else {
-                $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
-                $models = $this->owner->$junctionGetter()->all();
+                if ($activeQuery->via instanceof ActiveQueryInterface) { // viaTable
+
+                    $junctionTable = $activeQuery->via->from[0];
+                    list($junctionColumn) = array_keys($activeQuery->via->link);
+                    list($relatedColumn) = array_values($activeQuery->link);
+
+                    $rows = (new Query())
+                        ->from($junctionTable)
+                        ->select([
+                            $junctionColumn,
+                            $relatedColumn
+                        ])
+                        ->where([
+                            $junctionColumn => $this->owner->getPrimaryKey(),
+                        ])->all();
+
+                    $this->relationsMap($rows, function($row) use ($junctionTable) {
+                        Yii::$app->db->createCommand()
+                            ->delete($junctionTable, $row)
+                            ->execute();
+                    });
+
+                } else { // via
+                    $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+                    $models = $this->owner->$junctionGetter()->all();
+                }
             }
 
             foreach ($models as $model) {
