@@ -28,6 +28,7 @@ For make works this behavior you need:
 * Add all relational properties to rules as safe attribute
 * Declare getter for relational attribute
 * Put attribute to relationalFields property of behavior
+* All used models need to have only one primary key column
 
 ### One-to-one
 ```php
