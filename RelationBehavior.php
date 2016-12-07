@@ -165,115 +165,26 @@ class RelationBehavior extends Behavior
             $data['oldModels'] = [];
             $data['newRows'] = [];
             $data['oldRows'] = [];
-            $class = $activeQuery->modelClass;
 
-            $notAssociativeArrayOn = !ArrayHelper::isAssociative($activeQuery->on) &&
-                !empty($activeQuery->on);
-
-            $notAssociativeArrayViaOn = $activeQuery->multiple &&
-                !empty($activeQuery->via) &&
-                is_array($activeQuery->via) &&
-                is_object($activeQuery->via[1]) &&
-                !ArrayHelper::isAssociative($activeQuery->via[1]->on) &&
-                !empty($activeQuery->via[1]->on);
-
-            if ($notAssociativeArrayOn || $notAssociativeArrayViaOn) {
+            if (!$this->validateOnCondition($activeQuery)) {
                 Yii::$app->getDb()->getTransaction()->rollBack();
                 throw new RelationException('ON condition for attribute ' . $attribute . ' must be associative array');
             }
 
-            $params = !ArrayHelper::isAssociative($activeQuery->on) ? [] : $activeQuery->on;
-
             if ($activeQuery->multiple) {
-                if (empty($activeQuery->via)) {
-                    // one-to-many
-                    foreach ($activeQuery->link as $childAttribute => $parentAttribute) {
-                        $params[$childAttribute] = $this->owner->$parentAttribute;
-                    }
-
-                    if (!empty($data['data'])) {
-                        foreach ($data['data'] as $attributes) {
-                            $data['newModels'][] = new $class(array_merge($params,
-                                ArrayHelper::isAssociative($attributes) ? $attributes : []));
-                        }
-                    }
-                } else {
-                    // many-to-many
+                if (empty($activeQuery->via)) { // one-to-many
+                    $this->loadModelsOneToMany($attribute);
+                } else { // many-to-many
                     if ($activeQuery->via instanceof ActiveQueryInterface) { // viaTable
-
-                        $via = $activeQuery->via;
-                        $data['junctionTable'] = $via->from[0];
-
-                        list($data['junctionColumn']) = array_keys($via->link);
-                        list($data['relatedColumn']) = array_values($activeQuery->link);
-                        $junctionColumn = $data['junctionColumn'];
-                        $relatedColumn = $data['relatedColumn'];
-
-                        if (!empty($data['data'])) {
-                            // make sure what all row's ids from POST exists in database
-                            $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
-                            if ($countManyToManyModels != count($data['data'])) {
-                                throw new RelationException('Related records for attribute ' . $attribute . ' not found');
-                            }
-                            // create new junction rows
-                            foreach ($data['data'] as $relatedModelId) {
-                                $junctionModel = array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
-                                    [$junctionColumn => $this->owner->getPrimaryKey()]);
-                                $junctionModel[$relatedColumn] = $relatedModelId;
-                                $data['newRows'][] = $junctionModel;
-                            }
-                        }
-
-                        if (!empty($this->owner->getPrimaryKey())) {
-                            $data['oldRows'] = (new Query())
-                                ->from($data['junctionTable'])
-                                ->select([
-                                    $junctionColumn,
-                                    $relatedColumn
-                                ])
-                                ->where([
-                                    $junctionColumn => $this->owner->getPrimaryKey(),
-                                ])->all();
-                        }
-
+                        $this->loadModelsManyToManyViaTable($attribute);
                     } else { // via
-
-                        if (!is_object($activeQuery->via[1])) {
-                            throw new RelationException('via condition for attribute ' . $attribute . ' cannot must be object');
-                        }
-
-                        $via = $activeQuery->via[1];
-                        $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
-                        $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
-                        $data['junctionTable'] = $junctionModelClass::tableName();
-
-                        list($data['junctionColumn']) = array_keys($via->link);
-                        list($data['relatedColumn']) = array_values($activeQuery->link);
-                        $junctionColumn = $data['junctionColumn'];
-                        $relatedColumn = $data['relatedColumn'];
-
-                        if (!empty($data['data'])) {
-                            // make sure what all model's ids from POST exists in database
-                            $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
-                            if ($countManyToManyModels != count($data['data'])) {
-                                throw new RelationException('Related records for attribute ' . $attribute . ' not found');
-                            }
-                            // create new junction models
-                            foreach ($data['data'] as $relatedModelId) {
-                                $junctionModel = new $junctionModelClass(array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
-                                    [$junctionColumn => $this->owner->getPrimaryKey()]));
-                                $junctionModel->$relatedColumn = $relatedModelId;
-                                $data['newModels'][] = $junctionModel;
-                            }
-                        }
-
-                        $data['oldModels'] = $this->owner->$junctionGetter()->all();
+                        $this->loadModelsManyToManyVia($attribute);
                     }
                 }
 
             } elseif (!empty($data['data'])) {
                 // one-to-one
-                $data['newModels'][] = new $class($data['data']);
+                $this->loadModelsOneToOne($attribute);
             }
 
             if (empty($activeQuery->via)) {
@@ -335,53 +246,10 @@ class RelationBehavior extends Behavior
 
         foreach ($this->relationalData as $attribute => $data) {
 
-            /** @var ActiveRecord $model */
-            foreach ($data['newModels'] as $model) {
-                if ($model->isNewRecord) {
-                    if (!empty($data['activeQuery']->via)) {
-                        // only for many-to-many
-                        $junctionColumn = $data['junctionColumn'];
-                        $model->$junctionColumn = $this->owner->getPrimaryKey();
-                    } elseif ($data['activeQuery']->multiple) {
-                        // only one-to-many
-                        foreach ($data['activeQuery']->link as $childAttribute => $parentAttribute) {
-                            $model->$childAttribute = $this->owner->$parentAttribute;
-                        }
-                    }
-                    if (!$model->save()) {
-                        Yii::$app->getDb()->getTransaction()->rollBack();
-                        throw new RelationException('Model ' . $model::className() . ' not saved due to unknown error');
-                    }
-                }
-            }
-
-            // only for many-to-many
-            $this->relationsMap($data['newRows'], function($row) use ($attribute, $data) {
-                $junctionColumn = $data['junctionColumn'];
-                $row[$junctionColumn] = $this->owner->getPrimaryKey();
-                if (!$this->isExistingRow($row, $attribute)) {
-                    Yii::$app->db->createCommand()
-                        ->insert($data['junctionTable'], $row)
-                        ->execute();
-                }
-            });
-
-            foreach ($data['oldModels'] as $model) {
-                if ($this->isDeletedModel($model, $attribute)) {
-                    if (!$model->delete()) {
-                        Yii::$app->getDb()->getTransaction()->rollBack();
-                        throw new RelationException('Model ' . $model::className() . ' not deleted due to unknown error');
-                    }
-                }
-            }
-
-            $this->relationsMap($data['oldRows'], function($row) use ($attribute, $data) {
-                if ($this->isDeletedRow($row, $attribute)) {
-                    Yii::$app->db->createCommand()
-                        ->delete($data['junctionTable'], $row)
-                        ->execute();
-                }
-            });
+            // save models
+            $this->saveModels($attribute);
+            // delete models
+            $this->deleteModels($attribute);
 
             if (!$data['activeQuery']->multiple && (count($data['newModels']) == 0 || !$data['newModels'][0]->isNewRecord)) {
                 $needSaveOwner = true;
@@ -571,6 +439,253 @@ class RelationBehavior extends Behavior
                 }
             }
         }
+    }
+
+    /**
+     * Validate ON condition in ActiveQuery
+     *
+     * @param ActiveQuery $activeQuery
+     * @return bool
+     */
+    protected function validateOnCondition($activeQuery)
+    {
+        if (
+            !ArrayHelper::isAssociative($activeQuery->on) &&
+            !empty($activeQuery->on)
+        ) {
+            return false;
+        }
+
+        if (
+            $activeQuery->multiple &&
+            !empty($activeQuery->via) &&
+            is_array($activeQuery->via) &&
+            is_object($activeQuery->via[1]) &&
+            !ArrayHelper::isAssociative($activeQuery->via[1]->on) &&
+            !empty($activeQuery->via[1]->on)
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Load new model from POST for one-to-one relation
+     *
+     * @param $attribute
+     */
+    protected function loadModelsOneToOne($attribute)
+    {
+        $data = $this->relationalData[$attribute];
+
+        $activeQuery = $data['activeQuery'];
+        $class = $activeQuery->modelClass;
+
+        $data['newModels'][] = new $class($data['data']);
+
+        $this->relationalData[$attribute] = $data;
+    }
+
+    /**
+     * Load new models from POST for one-to-many relation
+     *
+     * @param $attribute
+     */
+    protected function loadModelsOneToMany($attribute)
+    {
+        $data = $this->relationalData[$attribute];
+        
+        $activeQuery = $data['activeQuery'];
+        $class = $activeQuery->modelClass;
+
+        // default query conditions
+        $params = !ArrayHelper::isAssociative($activeQuery->on) ? [] : $activeQuery->on;
+        // one-to-many
+        foreach ($activeQuery->link as $childAttribute => $parentAttribute) {
+            $params[$childAttribute] = $this->owner->$parentAttribute;
+        }
+
+        if (!empty($data['data'])) {
+            foreach ($data['data'] as $attributes) {
+                $data['newModels'][] = new $class(
+                    array_merge(
+                        $params,
+                        ArrayHelper::isAssociative($attributes) ? $attributes : []
+                    )
+                );
+            }
+        }
+
+        $this->relationalData[$attribute] = $data;
+    }
+
+    /**
+     * Load new models from POST for many-to-many relation with viaTable
+     *
+     * @param $attribute
+     * @throws RelationException
+     */
+    protected function loadModelsManyToManyViaTable($attribute)
+    {
+        $data = $this->relationalData[$attribute];
+
+        $activeQuery = $data['activeQuery'];
+        $class = $activeQuery->modelClass;
+
+        $via = $activeQuery->via;
+        $data['junctionTable'] = $via->from[0];
+
+        list($data['junctionColumn']) = array_keys($via->link);
+        list($data['relatedColumn']) = array_values($activeQuery->link);
+        $junctionColumn = $data['junctionColumn'];
+        $relatedColumn = $data['relatedColumn'];
+
+        if (!empty($data['data'])) {
+            // make sure what all row's ids from POST exists in database
+            $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
+            if ($countManyToManyModels != count($data['data'])) {
+                throw new RelationException('Related records for attribute ' . $attribute . ' not found');
+            }
+            // create new junction rows
+            foreach ($data['data'] as $relatedModelId) {
+                $junctionModel = array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                    [$junctionColumn => $this->owner->getPrimaryKey()]);
+                $junctionModel[$relatedColumn] = $relatedModelId;
+                $data['newRows'][] = $junctionModel;
+            }
+        }
+
+        if (!empty($this->owner->getPrimaryKey())) {
+            $data['oldRows'] = (new Query())
+                ->from($data['junctionTable'])
+                ->select([
+                    $junctionColumn,
+                    $relatedColumn
+                ])
+                ->where([
+                    $junctionColumn => $this->owner->getPrimaryKey(),
+                ])->all();
+        }
+
+        $this->relationalData[$attribute] = $data;
+    }
+
+    /**
+     * Load new models from POST for many-to-many relation with via
+     *
+     * @param $attribute
+     * @throws RelationException
+     */
+    protected function loadModelsManyToManyVia($attribute)
+    {
+        $data = $this->relationalData[$attribute];
+
+        $activeQuery = $data['activeQuery'];
+        $class = $activeQuery->modelClass;
+
+        if (!is_object($activeQuery->via[1])) {
+            throw new RelationException('via condition for attribute ' . $attribute . ' cannot must be object');
+        }
+
+        $via = $activeQuery->via[1];
+        $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+        $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
+        $data['junctionTable'] = $junctionModelClass::tableName();
+
+        list($data['junctionColumn']) = array_keys($via->link);
+        list($data['relatedColumn']) = array_values($activeQuery->link);
+        $junctionColumn = $data['junctionColumn'];
+        $relatedColumn = $data['relatedColumn'];
+
+        if (!empty($data['data'])) {
+            // make sure what all model's ids from POST exists in database
+            $countManyToManyModels = $class::find()->where([$class::primaryKey()[0] => $data['data']])->count();
+            if ($countManyToManyModels != count($data['data'])) {
+                throw new RelationException('Related records for attribute ' . $attribute . ' not found');
+            }
+            // create new junction models
+            foreach ($data['data'] as $relatedModelId) {
+                $junctionModel = new $junctionModelClass(array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                    [$junctionColumn => $this->owner->getPrimaryKey()]));
+                $junctionModel->$relatedColumn = $relatedModelId;
+                $data['newModels'][] = $junctionModel;
+            }
+        }
+
+        $data['oldModels'] = $this->owner->$junctionGetter()->all();
+
+        $this->relationalData[$attribute] = $data;
+    }
+
+    /**
+     * Save all new models for attribute
+     *
+     * @param $attribute
+     * @throws RelationException
+     */
+    protected function saveModels($attribute)
+    {
+        $data = $this->relationalData[$attribute];
+
+        /** @var ActiveRecord $model */
+        foreach ($data['newModels'] as $model) {
+            if ($model->isNewRecord) {
+                if (!empty($data['activeQuery']->via)) {
+                    // only for many-to-many
+                    $junctionColumn = $data['junctionColumn'];
+                    $model->$junctionColumn = $this->owner->getPrimaryKey();
+                } elseif ($data['activeQuery']->multiple) {
+                    // only one-to-many
+                    foreach ($data['activeQuery']->link as $childAttribute => $parentAttribute) {
+                        $model->$childAttribute = $this->owner->$parentAttribute;
+                    }
+                }
+                if (!$model->save()) {
+                    Yii::$app->getDb()->getTransaction()->rollBack();
+                    throw new RelationException('Model ' . $model::className() . ' not saved due to unknown error');
+                }
+            }
+        }
+
+        // only for many-to-many
+        $this->relationsMap($data['newRows'], function($row) use ($attribute, $data) {
+            $junctionColumn = $data['junctionColumn'];
+            $row[$junctionColumn] = $this->owner->getPrimaryKey();
+            if (!$this->isExistingRow($row, $attribute)) {
+                Yii::$app->db->createCommand()
+                    ->insert($data['junctionTable'], $row)
+                    ->execute();
+            }
+        });
+    }
+
+    /**
+     * Delete all old models for attribute if it needed
+     *
+     * @param $attribute
+     * @throws RelationException
+     */
+    protected function deleteModels($attribute)
+    {
+        $data = $this->relationalData[$attribute];
+
+        foreach ($data['oldModels'] as $model) {
+            if ($this->isDeletedModel($model, $attribute)) {
+                if (!$model->delete()) {
+                    Yii::$app->getDb()->getTransaction()->rollBack();
+                    throw new RelationException('Model ' . $model::className() . ' not deleted due to unknown error');
+                }
+            }
+        }
+
+        $this->relationsMap($data['oldRows'], function($row) use ($attribute, $data) {
+            if ($this->isDeletedRow($row, $attribute)) {
+                Yii::$app->db->createCommand()
+                    ->delete($data['junctionTable'], $row)
+                    ->execute();
+            }
+        });
     }
 
     /**

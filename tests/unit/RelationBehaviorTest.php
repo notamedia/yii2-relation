@@ -38,6 +38,7 @@ class RelationBehaviorTest extends TestCase
      * Testing method canSetProperty()
      *
      * - return true for valid data
+     *
      * - return false for invalid data
      *
      * @see RelationBehavior::canSetProperty
@@ -71,6 +72,7 @@ class RelationBehaviorTest extends TestCase
      * Testing setters
      *
      * - contains correct relationalData after setting valid data
+     *
      * - contains empty relationalData after setting invalid data
      *
      * @see RelationBehavior::__set
@@ -226,6 +228,7 @@ class RelationBehaviorTest extends TestCase
      * Testing method loadData() for many-to-many relation
      *
      * - attribute relationalData must be correct
+     *
      * - expecting exception if model does not exists
      *
      * @see RelationBehavior::loadData
@@ -318,7 +321,9 @@ class RelationBehaviorTest extends TestCase
      * Testing method loadData() for many-to-many relation with viaTable
      *
      * - attribute relationalData must be correct
+     *
      * - expecting exception if related rows does not exists
+     *
      */
     public function testLoadDataManyToManyViaTable()
     {
@@ -400,8 +405,11 @@ class RelationBehaviorTest extends TestCase
      * Testing method validateData()
      *
      * - return true for valid data
+     *
      * - model has no errors for valid data
+     *
      * - return false for invalid data
+     *
      * - model has errors for invalid data
      *
      * @see RelationBehavior::validateData
@@ -511,6 +519,7 @@ class RelationBehaviorTest extends TestCase
      * Testing method replaceExistingModel()
      *
      * - if added model already exists then return existing model
+     *
      * - if added model does not exists then return new model
      *
      * @see RelationBehavior::replaceExistingModel
@@ -555,6 +564,7 @@ class RelationBehaviorTest extends TestCase
      * Testing method isDeletedModel()
      *
      * - return true for deleted model
+     *
      * - return false for old models
      *
      * @see RelationBehavior::isDeletedModel
@@ -600,6 +610,7 @@ class RelationBehaviorTest extends TestCase
      * Testing method isDeletedRow()
      * 
      * - return true for deleted row
+     *
      * - return false for old row
      * 
      * @see RelationBehavior::isDeletedRows
@@ -655,6 +666,7 @@ class RelationBehaviorTest extends TestCase
      * Testing method isExistingRow()
      * 
      * - if added row already exists in table then return true
+     *
      * - if added row does not exists in table then return false
      * 
      * @see RelationBehavior::isExistingRow
@@ -699,6 +711,215 @@ class RelationBehaviorTest extends TestCase
 
         $this->assertTrue($method->invokeArgs($behavior, [$oldRow, 'news_files_via_table']));
         $this->assertFalse($method->invokeArgs($behavior, [$newRow, 'news_files_via_table']));
+    }
+
+    /**
+     * Testing method validateOnCondition()
+     *
+     * - if condition in onCondition part for one-to-many relation is an associative array, then return true
+     *
+     * - if condition in onCondition part for one-to-many relation isn't an associative array, then return false
+     *
+     * @see RelationBehavior::validateOnCondition
+     */
+    public function testValidateOnCondition()
+    {
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getImages'])
+            ->getMock();
+        $mockModel->id = 1;
+
+        $behavior = new RelationBehavior();
+
+        $method = new \ReflectionMethod(
+            $behavior, 'validateOnCondition'
+        );
+        $method->setAccessible(true);
+
+        // success
+        $activeQuery = $mockModel
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->onCondition(['entity_type' => '050']);
+
+        $this->assertTrue($method->invokeArgs($behavior, [$activeQuery]));
+
+        // fail
+        $activeQuery = $mockModel
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->onCondition(['like', 'entity_type', '050']);
+
+        $this->assertFalse($method->invokeArgs($behavior, [$activeQuery]));
+    }
+
+    /**
+     * Testing method validateOnCondition()
+     *
+     * - if condition in onCondition part for many-to-many relation is an associative array, then return true
+     *
+     * - if condition in onCondition part for many-to-many relation isn't not an associative array, then return false
+     *
+     * @see RelationBehavior::validateOnCondition
+     */
+    public function testValidateOnConditionWithVia()
+    {
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getImages'])
+            ->getMock();
+        $mockModel->id = 1;
+
+        $behavior = new RelationBehavior();
+
+        $method = new \ReflectionMethod(
+            $behavior, 'validateOnCondition'
+        );
+        $method->setAccessible(true);
+
+        // success
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getNewsFiles'])
+            ->getMock();
+        $mockModel->id = 1;
+
+
+        $activeQuery = $mockModel
+            ->hasMany(FakeNewsFilesModel::className(), ['news_id' => 'id'])
+            ->onCondition(['entity_type' => '050']);
+        $mockModel->expects($this->any())->method('getNewsFiles')->willReturn($activeQuery);
+
+        $activeQuery = $mockModel
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->via('newsFiles');
+
+        $this->assertTrue($method->invokeArgs($behavior, [$activeQuery]));
+
+        // fail
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getNewsFiles'])
+            ->getMock();
+        $mockModel->id = 1;
+
+        $activeQuery = $mockModel
+            ->hasMany(FakeNewsFilesModel::className(), ['news_id' => 'id'])
+            ->onCondition(['like', 'entity_type', '050']);
+
+        $mockModel->expects($this->any())->method('getNewsFiles')->willReturn($activeQuery);
+
+        $activeQuery = $mockModel
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->via('newsFiles');
+
+        $this->assertFalse($method->invokeArgs($behavior, [$activeQuery]));
+    }
+
+    /**
+     * Testing method loadModelsOneToOne()
+     *
+     * - key newModels must contains correct models
+     *
+     * - newModels key must contain one model
+     *
+     * - model is an object of correct class
+     *
+     * @see RelationBehavior::loadModelsOneToOne
+     */
+    public function testLoadModelsOneToOne()
+    {
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['file'],
+        ]);
+
+        $file = ['src' => '/images/file2.png'];
+        $activeQuery = (new FakeNewsModel())
+            ->hasOne(FakeFilesModel::className(), ['id' => 'file_id']);
+        
+        $prop = new \ReflectionProperty(
+            $behavior,
+            'relationalData'
+        );
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'file' => [
+                'activeQuery' => $activeQuery,
+                'data' => $file,
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'loadModelsOneToOne'
+        );
+        $method->setAccessible(true);
+        $method->invokeArgs($behavior, ['file']);
+
+        $models = $prop->getValue($behavior)['file']['newModels'];
+        $this->assertEquals([new FakeFilesModel($file)], $models);
+        $this->assertCount(1, $models);
+        $this->assertInstanceOf(FakeFilesModel::className(), $models[0]);
+    }
+
+    /**
+     * Testing method loadModelsOneToMany()
+     *
+     * - key newModels must contains correct models
+     *
+     * - newModels key must contain correct count of models
+     *
+     * - model is an object of correct class
+     *
+     * @see RelationBehavior::loadModelsOneToMany
+     */
+    public function testLoadModelsOneToMany()
+    {
+        /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
+        $mockModel = $this->getMockBuilder(FakeNewsModel::className())
+            ->setMethods(['getImages'])
+            ->getMock();
+        $mockModel->id = 1;
+        $mockModel->expects($this->any())->method('getImages')->willReturn([]);
+
+        $behavior = new RelationBehavior();
+
+        $behavior->owner = $mockModel;
+
+        $images = [
+            ['src' => '/images/image1.png'],
+            ['src' => '/images/image2.png'],
+        ];
+        $parentAttribute = 'file_id';
+        $activeQuery = (new FakeNewsModel())
+            ->hasOne(FakeFilesModel::className(), ['id' => $parentAttribute]);
+
+        $prop = new \ReflectionProperty(
+            $behavior,
+            'relationalData'
+        );
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'images' => [
+                'activeQuery' => $activeQuery,
+                'data' => $images,
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'loadModelsOneToMany'
+        );
+        $method->setAccessible(true);
+        $method->invokeArgs($behavior, ['images']);
+
+        $models = $prop->getValue($behavior)['images']['newModels'];
+
+        $expected = [];
+        foreach ($images as $attributes) {
+            $attributes['id'] = $behavior->owner->$parentAttribute;
+            $expected[] = new FakeFilesModel($attributes);
+        }
+        $this->assertEquals($expected, $models);
+        $this->assertCount(count($expected), $models);
+        foreach ($models as $model) {
+            $this->assertInstanceOf(FakeFilesModel::className(), $model);
+        }
     }
 
     /**

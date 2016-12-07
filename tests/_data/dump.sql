@@ -11,12 +11,14 @@ CREATE TABLE news (
 CREATE TABLE files (
   id  INTEGER PRIMARY KEY ASC,
   src VARCHAR(500),
-  entity_id INTEGER
+  entity_id INTEGER,
+  entity_type VARCHAR(10)
 );
 
 CREATE TABLE news_files (
   news_id INTEGER,
   file_id INTEGER,
+  entity_type VARCHAR(10),
   PRIMARY KEY (news_id, file_id)
 );
 
