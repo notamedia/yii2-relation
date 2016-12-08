@@ -753,7 +753,7 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method validateOnCondition()
+     * Testing method validateOnCondition() with via
      *
      * - if condition in onCondition part for many-to-many relation is an associative array, then return true
      *
@@ -920,6 +920,134 @@ class RelationBehaviorTest extends TestCase
         foreach ($models as $model) {
             $this->assertInstanceOf(FakeFilesModel::className(), $model);
         }
+    }
+
+    /**
+     * Testing method loadModelsManyToManyViaTable()
+     *
+     * - key newRows must contains correct data
+     *
+     * - key oldRows must contains correct data
+     *
+     * @see RelationBehavior::loadModelsManyToManyViaTable
+     */
+    public function testLoadModelsManyToManyViaTable()
+    {
+        $model = new FakeNewsModel();
+        $model->name = 'testLoadModelsManyToManyViaTable';
+        $model->save(false);
+
+        $oldRowsExpected = [];
+        $connection = \Yii::$app->db;
+        for ($i = 0; $i < 2; $i++) {
+            $fileId = $this->createFile(['src' => '/images/image.old.' . ($i + 1) . '.png']);
+            $connection->createCommand()
+                ->insert('news_files_via_table', [
+                    'news_id' => $model->id,
+                    'file_id' => $fileId,
+                ])->execute();
+            $oldRowsExpected[] = [
+                'news_id' => $model->id,
+                'file_id' => $fileId
+            ];
+        }
+
+        $newRowsExpected = $newFileIds = [];
+        for ($i = 0; $i < 2; $i++) {
+            $fileId = $this->createFile(['src' => '/images/image.new.' . ($i + 1) . '.png']);
+            $newRowsExpected[] = [
+                'news_id' => $model->id,
+                'file_id' => $fileId
+            ];
+            $newFileIds[] = $fileId;
+        }
+
+        $behavior = new RelationBehavior();
+        $behavior->owner = FakeNewsModel::findOne($model->id);
+
+        $activeQuery = (new FakeNewsModel())
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->viaTable('news_files_via_table', ['news_id' => 'id']);
+
+        $prop = new \ReflectionProperty($behavior, 'relationalData');
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'news_files_via_table' => [
+                'activeQuery' => $activeQuery,
+                'data' => $newFileIds,
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'loadModelsManyToManyViaTable'
+        );
+        $method->setAccessible(true);
+        $method->invokeArgs($behavior, ['news_files_via_table']);
+
+        $this->assertEquals($newRowsExpected, $prop->getValue($behavior)['news_files_via_table']['newRows']);
+        $this->assertEquals($oldRowsExpected, $prop->getValue($behavior)['news_files_via_table']['oldRows']);
+    }
+
+    /**
+     * Testing method loadModelsManyToManyVia()
+     *
+     * - key newModels must contains correct models
+     *
+     * - key oldRows must contains correct models
+     *
+     * @see RelationBehavior::loadModelsManyToManyVia
+     */
+    public function testLoadModelsManyToManyVia()
+    {
+        $model = new FakeNewsModel();
+        $model->name = 'loadModelsManyToManyVia';
+        $model->save(false);
+
+        $connection = \Yii::$app->db;
+        for ($i = 0; $i < 2; $i++) {
+            $fileId = $this->createFile(['src' => '/images/image.old.' . ($i + 1) . '.png']);
+            $connection->createCommand()
+                ->insert('news_files', [
+                    'news_id' => $model->id,
+                    'file_id' => $fileId,
+                ])->execute();
+        }
+        $oldModelsExpected = (new FakeNewsFilesModel())->find()->all();
+
+        $newModelsExpected = $newFileIds = [];
+        for ($i = 0; $i < 2; $i++) {
+            $fileId = $this->createFile(['src' => '/images/image.new.' . ($i + 1) . '.png']);
+            $newModelsExpected[] = new FakeNewsFilesModel([
+                'news_id' => $model->id,
+                'file_id' => $fileId
+            ]);
+            $newFileIds[] = $fileId;
+        }
+
+        $behavior = new RelationBehavior();
+        $behavior->owner = FakeNewsModel::findOne($model->id);
+
+        $activeQuery = (new FakeNewsModel())
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->via('newsFiles');
+
+        $prop = new \ReflectionProperty($behavior, 'relationalData');
+        $prop->setAccessible(true);
+        $prop->setValue($behavior, [
+            'news_files' => [
+                'activeQuery' => $activeQuery,
+                'data' => $newFileIds,
+            ]
+        ]);
+
+        $method = new \ReflectionMethod(
+            $behavior, 'loadModelsManyToManyVia'
+        );
+        $method->setAccessible(true);
+        $method->invokeArgs($behavior, ['news_files']);
+
+        $this->assertEquals($newModelsExpected, $prop->getValue($behavior)['news_files']['newModels']);
+        $this->assertEquals($oldModelsExpected, $prop->getValue($behavior)['news_files']['oldModels']);
     }
 
     /**
