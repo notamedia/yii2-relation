@@ -63,7 +63,6 @@ class RelationBehavior extends Behavior
      * Process owner-model before save event.
      *
      * @param ModelEvent $event object of event called by model
-     * @return bool
      */
     public function beforeSave($event)
     {
@@ -531,6 +530,7 @@ class RelationBehavior extends Behavior
         $data = $this->relationalData[$attribute];
 
         $activeQuery = $data['activeQuery'];
+        /** @var ActiveRecord $class */
         $class = $activeQuery->modelClass;
 
         $via = $activeQuery->via;
@@ -582,6 +582,7 @@ class RelationBehavior extends Behavior
         $data = $this->relationalData[$attribute];
 
         $activeQuery = $data['activeQuery'];
+        /** @var ActiveRecord $class */
         $class = $activeQuery->modelClass;
 
         if (!is_object($activeQuery->via[1])) {
@@ -590,6 +591,7 @@ class RelationBehavior extends Behavior
 
         $via = $activeQuery->via[1];
         $junctionGetter = 'get' . ucfirst($activeQuery->via[0]);
+        /** @var ActiveRecord $junctionModelClass */
         $data['junctionModelClass'] = $junctionModelClass = $via->modelClass;
         $data['junctionTable'] = $junctionModelClass::tableName();
 
@@ -670,6 +672,7 @@ class RelationBehavior extends Behavior
     {
         $data = $this->relationalData[$attribute];
 
+        /** @var ActiveRecord $model */
         foreach ($data['oldModels'] as $model) {
             if ($this->isDeletedModel($model, $attribute)) {
                 if (!$model->delete()) {
