@@ -28,4 +28,11 @@ CREATE TABLE news_files_via_table (
   PRIMARY KEY (news_id, file_id)
 );
 
+CREATE TABLE news_files_via_table_w_cond (
+  news_id INTEGER,
+  file_id INTEGER,
+  type VARCHAR(10),
+  PRIMARY KEY (news_id, file_id)
+);
+
 COMMIT;

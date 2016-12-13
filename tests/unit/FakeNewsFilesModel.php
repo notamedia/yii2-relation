@@ -20,6 +20,7 @@ class FakeNewsFilesModel extends ActiveRecord
     {
         return [
             [['news_id', 'file_id'], 'integer'],
+            [['entity_type'], 'string']
         ];
     }
 }

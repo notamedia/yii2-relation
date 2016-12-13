@@ -610,8 +610,12 @@ class RelationBehavior extends Behavior
             }
             // create new junction models
             foreach ($data['data'] as $relatedModelId) {
-                $junctionModel = new $junctionModelClass(array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
-                    [$junctionColumn => $this->owner->getPrimaryKey()]));
+                $junctionModel = new $junctionModelClass(
+                    array_merge(
+                        !ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                        [$junctionColumn => $this->owner->getPrimaryKey()]
+                    )
+                );
                 $junctionModel->$relatedColumn = $relatedModelId;
                 $data['newModels'][] = $junctionModel;
             }

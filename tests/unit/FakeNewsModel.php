@@ -47,7 +47,7 @@ class FakeNewsModel extends ActiveRecord
     /** @inheritdoc */
     public function extraFields()
     {
-        return ['file', 'images', 'news_files', 'news_files_via_table'];
+        return ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond'];
     }
 
     /** @inheritdoc */
@@ -56,7 +56,7 @@ class FakeNewsModel extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::class,
-                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table']
+                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond']
             ]
         ];
     }
@@ -86,11 +86,30 @@ class FakeNewsModel extends ActiveRecord
     }
 
     /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getNewsFilesWithCond()
+    {
+        return $this
+            ->hasMany(FakeNewsFilesModel::className(), ['news_id' => 'id'])
+            ->onCondition(['entity_type' => 'with_condition']);
+    }
+
+    /**
      * @return $this
      */
     public function getNews_files()
     {
         return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles');
+    }
+
+
+    /**
+     * @return $this
+     */
+    public function getNews_files_w_cond()
+    {
+        return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFilesWithCond');
     }
 
     /**
@@ -100,6 +119,18 @@ class FakeNewsModel extends ActiveRecord
     {
         return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->viaTable('news_files_via_table',
             ['news_id' => 'id']);
+    }
+
+    /**
+     * @return $this
+     */
+    public function getNews_files_via_table_w_cond()
+    {
+        return $this
+            ->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])
+            ->viaTable('news_files_via_table_w_cond', ['news_id' => 'id'], function($query) {
+                return $query->onCondition(['entity_type' => 'with_cond']);
+            });
     }
 
     /** @inheritdoc */
