@@ -549,8 +549,10 @@ class RelationBehavior extends Behavior
             }
             // create new junction rows
             foreach ($data['data'] as $relatedModelId) {
-                $junctionModel = array_merge(!ArrayHelper::isAssociative($via->on) ? [] : $via->on,
-                    [$junctionColumn => $this->owner->getPrimaryKey()]);
+                $junctionModel = array_merge(
+                    !ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                    [$junctionColumn => $this->owner->getPrimaryKey()]
+                );
                 $junctionModel[$relatedColumn] = $relatedModelId;
                 $data['newRows'][] = $junctionModel;
             }
@@ -559,13 +561,13 @@ class RelationBehavior extends Behavior
         if (!empty($this->owner->getPrimaryKey())) {
             $data['oldRows'] = (new Query())
                 ->from($data['junctionTable'])
-                ->select([
-                    $junctionColumn,
-                    $relatedColumn
-                ])
-                ->where([
-                    $junctionColumn => $this->owner->getPrimaryKey(),
-                ])->all();
+                ->select(array_merge(
+                        [$junctionColumn, $relatedColumn],
+                        !ArrayHelper::isAssociative($via->on) ? [] : array_keys($via->on))
+                )->where(array_merge(
+                    !ArrayHelper::isAssociative($via->on) ? [] : $via->on,
+                    [$junctionColumn => $this->owner->getPrimaryKey()]
+                ))->all();
         }
 
         $this->relationalData[$attribute] = $data;
