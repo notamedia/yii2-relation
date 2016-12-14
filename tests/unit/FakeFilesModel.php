@@ -5,7 +5,7 @@ namespace notamedia\relation\tests\unit;
 use yii\db\ActiveRecord;
 
 /**
- * Тестовая модель файлов
+ * Fake file model
  */
 class FakeFilesModel extends ActiveRecord
 {
