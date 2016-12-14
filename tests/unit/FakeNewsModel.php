@@ -6,7 +6,7 @@ use notamedia\relation\RelationBehavior;
 use yii\db\ActiveRecord;
 
 /**
- * Тестовая модель Новости
+ * Fake news model
  *
  * @property integer $file_id
  * @property string $name
@@ -96,7 +96,7 @@ class FakeNewsModel extends ActiveRecord
     }
 
     /**
-     * @return $this
+     * @return \yii\db\ActiveQuery
      */
     public function getNews_files()
     {
@@ -105,7 +105,7 @@ class FakeNewsModel extends ActiveRecord
 
 
     /**
-     * @return $this
+     * @return \yii\db\ActiveQuery
      */
     public function getNews_files_w_cond()
     {
@@ -113,7 +113,7 @@ class FakeNewsModel extends ActiveRecord
     }
 
     /**
-     * @return $this
+     * @return \yii\db\ActiveQuery
      */
     public function getNews_files_via_table()
     {
@@ -122,7 +122,7 @@ class FakeNewsModel extends ActiveRecord
     }
 
     /**
-     * @return $this
+     * @return \yii\db\ActiveQuery
      */
     public function getNews_files_via_table_w_cond()
     {

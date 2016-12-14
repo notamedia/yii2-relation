@@ -441,7 +441,7 @@ class RelationBehaviorTest extends TestCase
         $validData = [
             'file' => ['src' => '/images/file.png'],
             'images' => [
-                ['src' => '/images/image2.png'],
+                ['src' => '/images/image1.png'],
                 ['src' => '/images/image2.png'],
             ],
         ];
@@ -1180,8 +1180,6 @@ class RelationBehaviorTest extends TestCase
 
         $this->assertEquals($newModelsExpected, $prop->getValue($behavior)['news_files_w_cond']['newModels']);
         $this->assertEquals($oldModelsExpected, $prop->getValue($behavior)['news_files_w_cond']['oldModels']);
-
-        die('end');
     }
 
     /**

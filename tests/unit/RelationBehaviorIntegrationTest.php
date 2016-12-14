@@ -200,7 +200,7 @@ class RelationBehaviorIntegrationTest extends TestCase
         $model->file = ['src' => '/images/news3.file.txt'];
         $model->images = [
             ['src' => '/images/news3.image1.png'],
-            ['src' => '/images/news3.image1.png'],
+            ['src' => '/images/news3.image2.png'],
         ];
         $model->save();
     }

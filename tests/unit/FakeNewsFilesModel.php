@@ -5,7 +5,7 @@ namespace notamedia\relation\tests\unit;
 use yii\db\ActiveRecord;
 
 /**
- * Тестовая модель связи многие-ко-многим
+ * Fake relation for many-to-many
  */
 class FakeNewsFilesModel extends ActiveRecord
 {
