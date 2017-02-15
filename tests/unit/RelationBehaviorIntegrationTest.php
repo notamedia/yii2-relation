@@ -7,7 +7,7 @@ use yii\codeception\TestCase;
 use yii\db\ActiveRecord;
 
 /**
- * Integration test for RelationBehavior
+ * Integration test for RelationBehavior.
  */
 class RelationBehaviorIntegrationTest extends TestCase
 {
@@ -36,16 +36,11 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test saving models and related entities
-     *
-     * - save is successful, method save returned true
-     *
-     * - saving model attributes equals  saved model attributes
-     *
-     * - update of related entities was completed without errors
-     *
-     * - related entities equals with saved models
-     *
+     * Test saving models and related entities:
+     * - save is successful, method save returned true;
+     * - saving model attributes equals  saved model attributes;
+     * - update of related entities was completed without errors;
+     * - related entities equals with saved models.
      */
     public function testSaveModels()
     {
@@ -70,11 +65,9 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test deleting model and related entity model
-     *
-     * - method save returned value other than false
-     *
-     * - related entities deleted from the database
+     * Test deleting model and related entity model:
+     * - method save returned value other than false;
+     * - related entities deleted from the database.
      *
      * @throws \Exception
      */
@@ -90,16 +83,11 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     *  Test adding/removing related entities
-     *
-     *  - save returned true
-     *
-     *  - updating of related entities was completed without errors
-     *
-     *  - removed entity is removed from the database
-     *
-     *  - list of added / modified images equals with the input list
-     *
+     *  Test adding/removing related entities:
+     *  - save returned true;
+     *  - updating of related entities was completed without errors;
+     *  - removed entity is removed from the database;
+     *  - list of added / modified images equals with the input list.
      */
     public function testUpdateModels()
     {
@@ -131,12 +119,9 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test calling handlers when adding model
-     *
-     * - expected one-time calling handler RelationBehavior::beforeSave
-     *
-     * - expected one-time calling handler RelationBehavior::afterSave
-     *
+     * Test calling handlers when adding model:
+     * - expected one-time calling handler RelationBehavior::beforeSave;
+     * - expected one-time calling handler RelationBehavior::afterSave.
      */
     public function testTriggerEventInsert()
     {
@@ -164,12 +149,9 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test calling handlers when update model
-     *
-     * - expected one-time calling handler RelationBehavior::beforeSave
-     *
-     * - expected one-time calling handler RelationBehavior::afterSave
-     * 
+     * Test calling handlers when update model:
+     * - expected one-time calling handler RelationBehavior::beforeSave;
+     * - expected one-time calling handler RelationBehavior::afterSave.
      */
     public function testTriggerEventUpdate()
     {
@@ -197,9 +179,8 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test calling handlers when delete model
-     *
-     * - expected one-time calling handler RelationBehavior::afterDelete
+     * Test calling handlers when delete model:
+     * - expected one-time calling handler RelationBehavior::afterDelete.
      */
     public function testTriggerEventDelete()
     {
