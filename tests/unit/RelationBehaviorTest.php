@@ -7,7 +7,7 @@ use notamedia\relation\RelationException;
 use yii\codeception\TestCase;
 
 /**
- * Unit-tests for RelationBehavior
+ * Unit-tests for RelationBehavior.
  */
 class RelationBehaviorTest extends TestCase
 {
@@ -15,9 +15,8 @@ class RelationBehaviorTest extends TestCase
     public $appConfig = '@tests/unit/config.php';
 
     /**
-     * Testing method getRelationData()
-     *
-     * - contains correct data after setting attribute
+     * Testing method getRelationData():
+     * - contains correct data after setting attribute.
      *
      * @see RelationBehavior::getRelationData
      */
@@ -35,11 +34,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method canSetProperty()
-     *
-     * - return true for valid data
-     *
-     * - return false for invalid data
+     * Testing method canSetProperty():
+     * - return true for valid data;
+     * - return false for invalid data.
      *
      * @see RelationBehavior::canSetProperty
      */
@@ -69,11 +66,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing setters
-     *
-     * - contains correct relationalData after setting valid data
-     *
-     * - contains empty relationalData after setting invalid data
+     * Testing setters:
+     * - contains correct relationalData after setting valid data;
+     * - contains empty relationalData after setting invalid data.
      *
      * @see RelationBehavior::__set
      */
@@ -123,9 +118,8 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadData() for one-to-one relation
-     *
-     * - attribute relationalData must be correct
+     * Testing method loadData() for one-to-one relation:
+     * - attribute relationalData must be correct.
      *
      * @see RelationBehavior::loadData
      */
@@ -170,9 +164,8 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadData() for one-to-many relation
-     *
-     * - attribute relationalData must be correct
+     * Testing method loadData() for one-to-many relation:
+     * - attribute relationalData must be correct.
      *
      * @see RelationBehavior::loadData
      */
@@ -225,11 +218,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadData() for many-to-many relation
-     *
-     * - attribute relationalData must be correct
-     *
-     * - expecting exception if model does not exists
+     * Testing method loadData() for many-to-many relation:
+     * - attribute relationalData must be correct;
+     * - expecting exception if model does not exists.
      *
      * @see RelationBehavior::loadData
      */
@@ -318,12 +309,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadData() for many-to-many relation with viaTable
-     *
-     * - attribute relationalData must be correct
-     *
-     * - expecting exception if related rows does not exists
-     *
+     * Testing method loadData() for many-to-many relation with viaTable:
+     * - attribute relationalData must be correct;
+     * - expecting exception if related rows does not exists.
      */
     public function testLoadDataManyToManyViaTable()
     {
@@ -402,15 +390,11 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method validateData()
-     *
-     * - return true for valid data
-     *
-     * - model has no errors for valid data
-     *
-     * - return false for invalid data
-     *
-     * - model has errors for invalid data
+     * Testing method validateData():
+     * - return true for valid data;
+     * - model has no errors for valid data;
+     * - return false for invalid data;
+     * - model has errors for invalid data.
      *
      * @see RelationBehavior::validateData
      */
@@ -516,11 +500,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method replaceExistingModel()
-     *
-     * - if added model already exists then return existing model
-     *
-     * - if added model does not exists then return new model
+     * Testing method replaceExistingModel():
+     * - if added model already exists then return existing model;
+     * - if added model does not exists then return new model.
      *
      * @see RelationBehavior::replaceExistingModel
      */
@@ -561,11 +543,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method isDeletedModel()
-     *
-     * - return true for deleted model
-     *
-     * - return false for old models
+     * Testing method isDeletedModel():
+     * - return true for deleted model;
+     * - return false for old models.
      *
      * @see RelationBehavior::isDeletedModel
      */
@@ -607,11 +587,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method isDeletedRow()
-     * 
-     * - return true for deleted row
-     *
-     * - return false for old row
+     * Testing method isDeletedRow():
+     * - return true for deleted row;
+     * - return false for old row.
      * 
      * @see RelationBehavior::isDeletedRows
      */
@@ -663,11 +641,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method isExistingRow()
-     * 
-     * - if added row already exists in table then return true
-     *
-     * - if added row does not exists in table then return false
+     * Testing method isExistingRow():
+     * - if added row already exists in table then return true;
+     * - if added row does not exists in table then return false.
      * 
      * @see RelationBehavior::isExistingRow
      */
@@ -714,11 +690,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method validateOnCondition()
-     *
-     * - if condition in onCondition part for one-to-many relation is an associative array, then return true
-     *
-     * - if condition in onCondition part for one-to-many relation isn't an associative array, then return false
+     * Testing method validateOnCondition():
+     * - if condition in onCondition part for one-to-many relation is an associative array, then return true;
+     * - if condition in onCondition part for one-to-many relation isn't an associative array, then return false.
      *
      * @see RelationBehavior::validateOnCondition
      */
@@ -753,11 +727,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method validateOnCondition() with via
-     *
-     * - if condition in onCondition part for many-to-many relation is an associative array, then return true
-     *
-     * - if condition in onCondition part for many-to-many relation isn't not an associative array, then return false
+     * Testing method validateOnCondition() with via:
+     * - if condition in onCondition part for many-to-many relation is an associative array, then return true;
+     * - if condition in onCondition part for many-to-many relation isn't not an associative array, then return false.
      *
      * @see RelationBehavior::validateOnCondition
      */
@@ -814,13 +786,10 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadModelsOneToOne()
-     *
-     * - key newModels must contains correct models
-     *
-     * - newModels key must contain one model
-     *
-     * - model is an object of correct class
+     * Testing method loadModelsOneToOne():
+     * - key newModels must contains correct models;
+     * - newModels key must contain one model;
+     * - model is an object of correct class.
      *
      * @see RelationBehavior::loadModelsOneToOne
      */
@@ -859,13 +828,10 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadModelsOneToMany()
-     *
-     * - key newModels must contains correct models
-     *
-     * - newModels key must contain correct count of models
-     *
-     * - model is an object of correct class
+     * Testing method loadModelsOneToMany():
+     * - key newModels must contains correct models;
+     * - newModels key must contain correct count of models;
+     * - model is an object of correct class.
      *
      * @see RelationBehavior::loadModelsOneToMany
      */
@@ -923,11 +889,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadModelsManyToManyViaTable()
-     *
-     * - key newRows must contains correct data
-     *
-     * - key oldRows must contains correct data
+     * Testing method loadModelsManyToManyViaTable():
+     * - key newRows must contains correct data;
+     * - key oldRows must contains correct data.
      *
      * @see RelationBehavior::loadModelsManyToManyViaTable
      */
@@ -989,11 +953,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadModelsManyToManyViaTable() with onCondition
-     *
-     * - key newRows must contains correct data
-     *
-     * - key oldRows must contains correct data
+     * Testing method loadModelsManyToManyViaTable() with onCondition:
+     * - key newRows must contains correct data;
+     * - key oldRows must contains correct data.
      *
      * @see RelationBehavior::loadModelsManyToManyViaTable
      */
@@ -1057,11 +1019,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadModelsManyToManyVia()
-     *
-     * - key newModels must contains correct models
-     *
-     * - key oldModels must contains correct models
+     * Testing method loadModelsManyToManyVia():
+     * - key newModels must contains correct models;
+     * - key oldModels must contains correct models.
      *
      * @see RelationBehavior::loadModelsManyToManyVia
      */
@@ -1119,11 +1079,9 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Testing method loadModelsManyToManyVia() with OnCondition
-     *
-     * - key newModels must contains correct models
-     *
-     * - key oldModels must contains correct models
+     * Testing method loadModelsManyToManyVia() with OnCondition:
+     * - key newModels must contains correct models;
+     * - key oldModels must contains correct models.
      *
      * @see RelationBehavior::loadModelsManyToManyVia
      */
@@ -1183,7 +1141,7 @@ class RelationBehaviorTest extends TestCase
     }
 
     /**
-     * Create model File
+     * Create model File.
      * 
      * @param array $data
      * @return mixed
