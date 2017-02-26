@@ -5,9 +5,10 @@ namespace notamedia\relation\tests\unit;
 use notamedia\relation\RelationBehavior;
 use yii\codeception\TestCase;
 use yii\db\ActiveRecord;
+use yii\db\Query;
 
 /**
- * Integration test for RelationBehavior
+ * Integration test for RelationBehavior.
  */
 class RelationBehaviorIntegrationTest extends TestCase
 {
@@ -22,7 +23,7 @@ class RelationBehaviorIntegrationTest extends TestCase
     {
         parent::setUp();
 
-        $model = $model = new FakeNewsModel();
+        $model = new FakeNewsModel();
 
         $model->name = 'News 1';
         $model->file = ['src' => '/images/file.pdf'];
@@ -30,18 +31,42 @@ class RelationBehaviorIntegrationTest extends TestCase
             ['src' => '/images/image1.png',],
             ['src' => '/images/image2.png',],
         ];
+
+        $files = [
+            ['src' => '/images/file1.png'],
+            ['src' => '/images/file2.png'],
+        ];
+        $fileIds = [];
+        foreach ($files as $data) {
+            $file = new FakeFilesModel($data);
+            $file->save(false);
+            $fileIds[] = $file->id;
+        }
+        $model->news_files = $fileIds;
+
+        $files = [
+            ['src' => '/images/file3.png'],
+            ['src' => '/images/file4.png'],
+        ];
+        $fileIds = [];
+        foreach ($files as $data) {
+            $file = new FakeFilesModel($data);
+            $file->save(false);
+            $fileIds[] = $file->id;
+        }
+        $model->news_files_via_table = $fileIds;
+
         $model->save();
 
         $this->model = $model;
     }
 
     /**
-     * Test saving models and related entities
-     *
-     * - save is successful, method save returned true
-     * - saving model attributes equals  saved model attributes
-     * - update of related entities was completed without errors
-     * - related entities equals with saved models
+     * Test saving models and related entities:
+     * - save is successful, method save returned true;
+     * - saving model attributes equals  saved model attributes;
+     * - update of related entities was completed without errors;
+     * - related entities equals with saved models.
      */
     public function testSaveModels()
     {
@@ -54,6 +79,18 @@ class RelationBehaviorIntegrationTest extends TestCase
             ['src' => '/images/image2.png',],
         ];
 
+        $files = [
+            ['src' => '/images/file1.png'],
+            ['src' => '/images/file2.png'],
+        ];
+        $fileIds = [];
+        foreach ($files as $data) {
+            $file = new FakeFilesModel($data);
+            $file->save(false);
+            $fileIds[] = $file->id;
+        }
+        $model->news_files_via_table = $fileIds;
+
         $this->assertTrue($model->save());
 
         $savedModel = FakeNewsModel::findOne($model->id);
@@ -62,14 +99,17 @@ class RelationBehaviorIntegrationTest extends TestCase
 
         $this->assertTrue($model->isRelationalFinished());
 
-        $this->assertEquals($model->getImages()->all(), $savedModel->images);
+        $model->refresh();
+
+        $this->assertEquals($model->images, $savedModel->images);
+        $this->assertEquals($model->news_files_via_table, $savedModel->news_files_via_table);
     }
 
     /**
-     * Test deleting model and related entity model
+     * Test deleting model and related entity model:
+     * - method save returned value other than false;
+     * - related entities deleted from the database.
      *
-     * - method save returned value other than false
-     * - related entities deleted from the database
      * @throws \Exception
      */
     public function testDeleteModels()
@@ -81,15 +121,15 @@ class RelationBehaviorIntegrationTest extends TestCase
         $this->assertTrue($model->delete() !== false);
 
         $this->assertEmpty(FakeFilesModel::find()->where(['entity_id' => $id])->all());
+        $this->assertEmpty((new Query())->from('news_files_via_table')->where(['news_id' => $id])->all());
     }
 
     /**
-     *  Test adding/removing related entities
-     *
-     *  - save returned true
-     *  - updating of related entities was completed without errors
-     *  - removed entity is removed from the database
-     *  - list of added / modified images equals with the input list
+     *  Test adding/removing related entities:
+     *  - save returned true;
+     *  - updating of related entities was completed without errors;
+     *  - removed entity is removed from the database;
+     *  - list of added / modified images equals with the input list.
      */
     public function testUpdateModels()
     {
@@ -121,17 +161,15 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test calling handlers when adding model
-     *
-     * - expected one-time calling handler RelationBehavior::beforeSave
-     * - expected one-time calling handler RelationBehavior::afterSave
+     * Test calling handlers when adding model:
+     * - expected one-time calling handler RelationBehavior::beforeSave;
+     * - expected one-time calling handler RelationBehavior::afterSave.
      */
     public function testTriggerEventInsert()
     {
-        $mockBehavior = $this->getMock(
-            RelationBehavior::class,
-            ['beforeSave', 'afterSave']
-        );
+        $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
+            ->setMethods(['beforeSave', 'afterSave'])
+            ->getMock();
         $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('beforeSave');
@@ -147,23 +185,21 @@ class RelationBehaviorIntegrationTest extends TestCase
         $model->file = ['src' => '/images/news3.file.txt'];
         $model->images = [
             ['src' => '/images/news3.image1.png'],
-            ['src' => '/images/news3.image1.png'],
+            ['src' => '/images/news3.image2.png'],
         ];
         $model->save();
     }
 
     /**
-     * Test calling handlers when update model
-     *
-     * - expected one-time calling handler RelationBehavior::beforeSave
-     * - expected one-time calling handler RelationBehavior::afterSave
+     * Test calling handlers when update model:
+     * - expected one-time calling handler RelationBehavior::beforeSave;
+     * - expected one-time calling handler RelationBehavior::afterSave.
      */
     public function testTriggerEventUpdate()
     {
-        $mockBehavior = $this->getMock(
-            RelationBehavior::class,
-            ['beforeSave', 'afterSave']
-        );
+        $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
+            ->setMethods(['beforeSave', 'afterSave'])
+            ->getMock();
         $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('beforeSave');
@@ -185,16 +221,14 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     * Test calling handlers when delete model
-     *
-     * - expected one-time calling handler RelationBehavior::afterDelete
+     * Test calling handlers when delete model:
+     * - expected one-time calling handler RelationBehavior::afterDelete.
      */
     public function testTriggerEventDelete()
     {
-        $mockBehavior = $this->getMock(
-            RelationBehavior::class,
-            ['afterDelete']
-        );
+        $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
+            ->setMethods(['afterDelete'])
+            ->getMock();
         $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('afterDelete');

@@ -28,6 +28,7 @@ For make works this behavior you need:
 * Add all relational properties to rules as safe attribute
 * Declare getter for relational attribute
 * Put attribute to relationalFields property of behavior
+* All used models need to have only one primary key column
 
 ### One-to-one
 ```php
@@ -157,6 +158,64 @@ class Entity extends ActiveRecord
             [
                 'class' => RelationBehavior::className(),
                 'relationalFields' => ['many_to_many_attribute']
+            ]
+        ];
+    }
+    
+    public function transactions()
+    {
+        return [
+            $this->getScenario() => static::OP_ALL
+        ];
+    }
+    
+    ...
+}
+
+```
+
+or
+
+```php
+<?php
+
+...
+
+class Entity extends ActiveRecord
+{
+    ...
+    
+    public function rules()
+    {
+        return [
+            [['many_to_many_attribute', 'many_to_many_attributy_w_cond'], 'safe']
+        ];
+    }
+
+    public function getMany_to_many_attribute()
+    {
+        return $this->hasMany(ManyToManyModel::className(), 
+            ['id' => 'many_to_many_model_id'])
+                ->viaTable('table_many_to_many', ['entity_id' => 'id']);
+    }
+    
+    // with onCondition
+    public function getMany_to_many_attribute_w_cond()
+    {
+        return $this->hasMany(ManyToManyModel::className(), 
+            ['id' => 'many_to_many_model_id'])
+            ->viaTable('table_many_to_many_attributy_w_cond', ['entity_id' => 'id'], function($query) {
+                 /** @var ActiveQuery $query */
+                 return $query->onCondition(['entity_type' => 'woo']);
+            });
+    }
+    
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => RelationBehavior::className(),
+                'relationalFields' => ['many_to_many_attribute', 'many_to_many_attributy_w_cond']
             ]
         ];
     }
