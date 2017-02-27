@@ -286,7 +286,6 @@ class RelationBehaviorTest extends TestCase
         );
 
         // fail
-
         $this->expectException(RelationException::className());
         $this->expectExceptionMessage('Related records for attribute files not found');
 
