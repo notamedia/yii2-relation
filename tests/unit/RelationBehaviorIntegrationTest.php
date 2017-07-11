@@ -161,39 +161,69 @@ class RelationBehaviorIntegrationTest extends TestCase
     }
 
     /**
-     *  Test adding/removing related entities:
-     *  - save returned true;
-     *  - updating of related entities was completed without errors;
-     *  - removed entity is removed from the database;
-     *  - list of added / modified images equals with the input list.
+     *  Test adding/removing related entities with preProcessing:
+     *  - empty sort field before save
+     *  - correct sort after save
+     *  - correct sort after save changed id order
      */
     public function testUpdateModelsWithPreProcess()
     {
         $model = FakeNewsModel::findOne($this->model->id);
-//
-//        $images = [];
-//        foreach ($model->images as $image) {
-//            $images[] = $image->getAttributes();
-//        }
-//
-//        $deletedImage = array_pop($images);
-//
-//        $images = array_merge($images, [
-//            ['src' => '/images/image3.png'],
-//            ['src' => '/images/image4.png'],
-//            ['src' => '/images/image5.png'],
-//        ]);
-//
-//        $model->images = $images;
-//
-//        $this->assertTrue($model->save());
-//
-//        $this->assertTrue($model->isRelationalFinished());
-//
-//        $this->assertEmpty(FakeFilesModel::findOne($deletedImage['src']));
-//
-//        $model = FakeNewsModel::findOne($this->model->id);
-//        $this->assertEquals(array_column($images, 'src'), array_map(function($model) {return $model->src;}, $model->images));
+
+        $exist = $model->getNewsFiles()->all();
+        foreach ($exist as $item) {
+            $this->assertNull($item->sort);
+        }
+
+        $filesId = array_map(function($fileModel) {
+            return $fileModel->id;
+        }, FakeFilesModel::find()
+            ->orWhere(['src' => '/images/file2.png'])
+            ->orWhere(['src' => '/images/file.pdf'])
+            ->orderBy('id ASC')
+            ->all()
+        );
+
+        $model->news_files_sort = $filesId;
+        $model->save();
+
+        $this->assertTrue($model->isRelationalFinished());
+
+        $this->assertCount(2, $model->news_files_sort);
+
+        $file = FakeFilesModel::findOne(['src' => '/images/file2.png']);
+        $newsFile = FakeNewsFilesModel::findOne(['file_id' => $file->id]);
+        $this->assertEquals(1, $newsFile->sort);
+
+        $file = FakeFilesModel::findOne(['src' => '/images/file.pdf']);
+        $newsFile = FakeNewsFilesModel::findOne(['file_id' => $file->id]);
+        $this->assertEquals(2, $newsFile->sort);
+
+        $model = FakeNewsModel::findOne($this->model->id);
+
+        $filesId = array_map(function($fileModel) {
+            return $fileModel->id;
+        }, FakeFilesModel::find()
+            ->orWhere(['src' => '/images/file2.png'])
+            ->orWhere(['src' => '/images/file.pdf'])
+            ->orderBy('id DESC')
+            ->all()
+        );
+
+        $model->news_files_sort = $filesId;
+        $model->save();
+
+        $this->assertTrue($model->isRelationalFinished());
+
+        $this->assertCount(2, $model->news_files_sort);
+
+        $file = FakeFilesModel::findOne(['src' => '/images/file.pdf']);
+        $newsFile = FakeNewsFilesModel::findOne(['file_id' => $file->id]);
+        $this->assertEquals(1, $newsFile->sort);
+
+        $file = FakeFilesModel::findOne(['src' => '/images/file2.png']);
+        $newsFile = FakeNewsFilesModel::findOne(['file_id' => $file->id]);
+        $this->assertEquals(2, $newsFile->sort);
     }
 
     /**

@@ -6,6 +6,11 @@ use yii\db\ActiveRecord;
 
 /**
  * Fake file model
+ *
+ * @property integer $id
+ * @property string $src
+ * @property integer $entity_id
+ * @property string $entity_type
  */
 class FakeFilesModel extends ActiveRecord
 {

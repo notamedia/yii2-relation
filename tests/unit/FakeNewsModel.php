@@ -8,6 +8,7 @@ use yii\db\ActiveRecord;
 /**
  * Fake news model
  *
+ * @property integer $id
  * @property integer $file_id
  * @property string $name
  * @property FakeFilesModel $file
@@ -53,10 +54,15 @@ class FakeNewsModel extends ActiveRecord
     /** @inheritdoc */
     public function behaviors()
     {
+        $sort = 1;
         return [
             [
                 'class' => RelationBehavior::class,
-                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond', 'news_files_sort']
+                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond', 'news_files_sort'],
+                'preProcessing' => ['news_files_sort' => function($model) use (&$sort) {
+                    $model->sort = $sort++;
+                    return $model;
+                }]
             ]
         ];
     }
