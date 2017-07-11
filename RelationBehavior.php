@@ -45,12 +45,31 @@ use Yii;
 class RelationBehavior extends Behavior
 {
     /**
+     * ```php
+     * 'relationalFields' => ['posts', 'categories'],
+     * 'preProcessing' => [
+     *    'posts' => function (ActiveRecord $model) use ($postSortIndex) {
+     *          $model->sort = $postSortIndex++;
+     *          return $model;
+     *     },
+     *     'categories' => function (ActiveRecord $model) {
+     *          $model->category_id = RestHelper::getShortId($model->id);
+     *          return $model;
+     *     }
+     * ]
+     * ```
+     *
+     * @var array Array of relation fields with callback-function for new models pre-processing.
+     */
+    public $preProcessing;
+
+    /**
      * @var array Relation attributes list.
      */
     public $relationalFields = [];
 
     /**
-     * @var bool Indices finish of all saving operations
+     * @var bool Indices finish of all saving operations.
      */
     protected $relationalFinished = false;
 
@@ -58,6 +77,22 @@ class RelationBehavior extends Behavior
      * @var array Relation attributes data.
      */
     protected $relationalData = [];
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    public function init()
+    {
+        if ($this->preProcessing) {
+            foreach ($this->preProcessing as $field => $callback) {
+                if (!is_callable($callback)) {
+                    throw new \InvalidArgumentException(
+                        sprintf('Field "%s" must have callable, %s given.', $field, gettype($callback))
+                    );
+                }
+            }
+        }
+    }
 
     /**
      * Process owner-model before save event.
@@ -244,11 +279,10 @@ class RelationBehavior extends Behavior
         $needSaveOwner = false;
 
         foreach ($this->relationalData as $attribute => $data) {
-
-            // save models
-            $this->saveModels($attribute);
             // delete models
             $this->deleteModels($attribute);
+            // save models
+            $this->saveModels($attribute);
 
             if (!$data['activeQuery']->multiple && (count($data['newModels']) == 0 || !$data['newModels'][0]->isNewRecord)) {
                 $needSaveOwner = true;
@@ -481,7 +515,11 @@ class RelationBehavior extends Behavior
         $activeQuery = $data['activeQuery'];
         $class = $activeQuery->modelClass;
 
-        $data['newModels'][] = new $class($data['data']);
+        $model = new $class($data['data']);
+        if ($this->preProcessing[$attribute]) {
+            $model = call_user_func($this->preProcessing[$attribute], $model);
+        }
+        $data['newModels'][] = $model;
 
         $this->relationalData[$attribute] = $data;
     }
@@ -507,12 +545,16 @@ class RelationBehavior extends Behavior
 
         if (!empty($data['data'])) {
             foreach ($data['data'] as $attributes) {
-                $data['newModels'][] = new $class(
+                $model = new $class(
                     array_merge(
                         $params,
                         ArrayHelper::isAssociative($attributes) ? $attributes : []
                     )
                 );
+                if ($this->preProcessing[$attribute]) {
+                    $model = call_user_func($this->preProcessing[$attribute], $model);
+                }
+                $data['newModels'][] = $model;
             }
         }
 
@@ -554,6 +596,9 @@ class RelationBehavior extends Behavior
                     [$junctionColumn => $this->owner->getPrimaryKey()]
                 );
                 $junctionModel[$relatedColumn] = $relatedModelId;
+                if ($this->preProcessing[$attribute]) {
+                    $junctionModel = call_user_func($this->preProcessing[$attribute], $junctionModel);
+                }
                 $data['newRows'][] = $junctionModel;
             }
         }
@@ -617,6 +662,9 @@ class RelationBehavior extends Behavior
                     )
                 );
                 $junctionModel->$relatedColumn = $relatedModelId;
+                if (isset($this->preProcessing[$attribute])) {
+                    $junctionModel = call_user_func($this->preProcessing[$attribute], $junctionModel);
+                }
                 $data['newModels'][] = $junctionModel;
             }
         }

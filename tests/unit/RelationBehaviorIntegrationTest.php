@@ -154,10 +154,46 @@ class RelationBehaviorIntegrationTest extends TestCase
 
         $this->assertTrue($model->isRelationalFinished());
 
-        $this->assertEmpty(FakeFilesModel::findOne($deletedImage['id']));
+        $this->assertEmpty(FakeFilesModel::findOne($deletedImage['src']));
 
         $model = FakeNewsModel::findOne($this->model->id);
         $this->assertEquals(array_column($images, 'src'), array_map(function($model) {return $model->src;}, $model->images));
+    }
+
+    /**
+     *  Test adding/removing related entities:
+     *  - save returned true;
+     *  - updating of related entities was completed without errors;
+     *  - removed entity is removed from the database;
+     *  - list of added / modified images equals with the input list.
+     */
+    public function testUpdateModelsWithPreProcess()
+    {
+        $model = FakeNewsModel::findOne($this->model->id);
+//
+//        $images = [];
+//        foreach ($model->images as $image) {
+//            $images[] = $image->getAttributes();
+//        }
+//
+//        $deletedImage = array_pop($images);
+//
+//        $images = array_merge($images, [
+//            ['src' => '/images/image3.png'],
+//            ['src' => '/images/image4.png'],
+//            ['src' => '/images/image5.png'],
+//        ]);
+//
+//        $model->images = $images;
+//
+//        $this->assertTrue($model->save());
+//
+//        $this->assertTrue($model->isRelationalFinished());
+//
+//        $this->assertEmpty(FakeFilesModel::findOne($deletedImage['src']));
+//
+//        $model = FakeNewsModel::findOne($this->model->id);
+//        $this->assertEquals(array_column($images, 'src'), array_map(function($model) {return $model->src;}, $model->images));
     }
 
     /**

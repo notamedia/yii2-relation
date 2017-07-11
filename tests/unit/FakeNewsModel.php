@@ -29,7 +29,7 @@ class FakeNewsModel extends ActiveRecord
         return [
             [['file_id'], 'integer'],
             ['name', 'string', 'max' => 255],
-            [['file', 'images', 'news_files', 'news_files_via_table'], 'safe'],
+            [['file', 'images', 'news_files', 'news_files_sort', 'news_files_via_table'], 'safe'],
         ];
     }
 
@@ -56,7 +56,7 @@ class FakeNewsModel extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::class,
-                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond']
+                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond', 'news_files_sort']
             ]
         ];
     }
@@ -103,6 +103,13 @@ class FakeNewsModel extends ActiveRecord
         return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles');
     }
 
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getNews_files_sort()
+    {
+        return $this->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles');
+    }
 
     /**
      * @return \yii\db\ActiveQuery

@@ -15,6 +15,42 @@ class RelationBehaviorTest extends TestCase
     public $appConfig = '@tests/unit/config.php';
 
     /**
+     * Testing method init():
+     * - throw exception on invalid preProcessing configuration.
+     *
+     * @see RelationBehavior::init
+     */
+    public function testPreProcessingInitThrowException()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['images'],
+            'preProcessing' => ['images' => 'string']
+        ]);
+
+        $behavior->init();
+    }
+
+    /**
+     * Testing method init():
+     * - passed initialization.
+     *
+     * @see RelationBehavior::init
+     */
+    public function testPreProcessingInit()
+    {
+        $behavior = new RelationBehavior([
+            'relationalFields' => ['images'],
+            'preProcessing' => ['images' => function() {
+                return true;
+            }]
+        ]);
+
+        $behavior->init();
+    }
+
+    /**
      * Testing method getRelationData():
      * - contains correct data after setting attribute.
      *
@@ -788,15 +824,21 @@ class RelationBehaviorTest extends TestCase
     /**
      * Testing method loadModelsOneToOne():
      * - key newModels must contains correct models;
-     * - newModels key must contain one model;
+     * - newModels key must contain one model with entity_id set by preProcessing;
      * - model is an object of correct class.
      *
      * @see RelationBehavior::loadModelsOneToOne
      */
     public function testLoadModelsOneToOne()
     {
+        $entity_id = 1090;
         $behavior = new RelationBehavior([
             'relationalFields' => ['file'],
+            'preProcessing' => ['file' => function(FakeFilesModel $model) use ($entity_id) {
+                $model->entity_id = $entity_id;
+
+                return $model;
+            }]
         ]);
 
         $file = ['src' => '/images/file2.png'];
@@ -822,14 +864,14 @@ class RelationBehaviorTest extends TestCase
         $method->invokeArgs($behavior, ['file']);
 
         $models = $prop->getValue($behavior)['file']['newModels'];
-        $this->assertEquals([new FakeFilesModel($file)], $models);
+        $this->assertEquals([new FakeFilesModel(array_merge($file, ['entity_id' => $entity_id]))], $models);
         $this->assertCount(1, $models);
         $this->assertInstanceOf(FakeFilesModel::className(), $models[0]);
     }
 
     /**
      * Testing method loadModelsOneToMany():
-     * - key newModels must contains correct models;
+     * - key newModels must contains correct models with entity_id set by preProcessing;
      * - newModels key must contain correct count of models;
      * - model is an object of correct class.
      *
@@ -844,7 +886,14 @@ class RelationBehaviorTest extends TestCase
         $mockModel->id = 1;
         $mockModel->expects($this->any())->method('getImages')->willReturn([]);
 
-        $behavior = new RelationBehavior();
+        $entity_id = 1090;
+        $behavior = new RelationBehavior([
+            'preProcessing' => ['images' => function(FakeFilesModel $model) use ($entity_id) {
+                $model->entity_id = $entity_id;
+
+                return $model;
+            }]
+        ]);
 
         $behavior->owner = $mockModel;
 
@@ -879,6 +928,7 @@ class RelationBehaviorTest extends TestCase
         $expected = [];
         foreach ($images as $attributes) {
             $attributes['id'] = $behavior->owner->$parentAttribute;
+            $attributes['entity_id'] = $entity_id;
             $expected[] = new FakeFilesModel($attributes);
         }
         $this->assertEquals($expected, $models);
@@ -890,7 +940,7 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method loadModelsManyToManyViaTable():
-     * - key newRows must contains correct data;
+     * - key newRows must contains correct data with sort set by preProcessing;
      * - key oldRows must contains correct data.
      *
      * @see RelationBehavior::loadModelsManyToManyViaTable
@@ -921,12 +971,20 @@ class RelationBehaviorTest extends TestCase
             $fileId = $this->createFile(['src' => '/images/image.new.' . ($i + 1) . '.png']);
             $newRowsExpected[] = [
                 'news_id' => $model->id,
-                'file_id' => $fileId
+                'file_id' => $fileId,
+                'sort'    => $i
             ];
             $newFileIds[] = $fileId;
         }
 
-        $behavior = new RelationBehavior();
+        $sortOrder = 0;
+        $behavior = new RelationBehavior([
+            'preProcessing' => ['news_files_via_table' => function(array $model) use (&$sortOrder) {
+                $model['sort'] = $sortOrder++;
+
+                return $model;
+            }]
+        ]);
         $behavior->owner = FakeNewsModel::findOne($model->id);
 
         $activeQuery = (new FakeNewsModel())
@@ -954,7 +1012,7 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method loadModelsManyToManyViaTable() with onCondition:
-     * - key newRows must contains correct data;
+     * - key newRows must contains correct data with sort set by preProcessing;
      * - key oldRows must contains correct data.
      *
      * @see RelationBehavior::loadModelsManyToManyViaTable
@@ -986,11 +1044,19 @@ class RelationBehaviorTest extends TestCase
                 'type' => 'with_condition',
                 'news_id' => $model->id,
                 'file_id' => $fileId,
+                'sort'    => $i
             ];
             $newFileIds[] = $fileId;
         }
 
-        $behavior = new RelationBehavior();
+        $sortOrder = 0;
+        $behavior = new RelationBehavior([
+            'preProcessing' => ['news_files_via_table_w_cond' => function(array $model) use (&$sortOrder) {
+                $model['sort'] = $sortOrder++;
+
+                return $model;
+            }]
+        ]);
         $behavior->owner = FakeNewsModel::findOne($model->id);
 
         $activeQuery = (new FakeNewsModel())
@@ -1020,7 +1086,7 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method loadModelsManyToManyVia():
-     * - key newModels must contains correct models;
+     * - key newModels must contains correct models with sort set by preProcessing;
      * - key oldModels must contains correct models.
      *
      * @see RelationBehavior::loadModelsManyToManyVia
@@ -1047,12 +1113,20 @@ class RelationBehaviorTest extends TestCase
             $fileId = $this->createFile(['src' => '/images/image.new.' . ($i + 1) . '.png']);
             $newModelsExpected[] = new FakeNewsFilesModel([
                 'news_id' => $model->id,
-                'file_id' => $fileId
+                'file_id' => $fileId,
+                'sort'    => $i
             ]);
             $newFileIds[] = $fileId;
         }
 
-        $behavior = new RelationBehavior();
+        $sortOrder = 0;
+        $behavior = new RelationBehavior([
+            'preProcessing' => ['news_files' => function(FakeNewsFilesModel $model) use (&$sortOrder) {
+                $model->sort = $sortOrder++;
+
+                return $model;
+            }]
+        ]);
         $behavior->owner = FakeNewsModel::findOne($model->id);
 
         $activeQuery = (new FakeNewsModel())
@@ -1080,7 +1154,7 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method loadModelsManyToManyVia() with OnCondition:
-     * - key newModels must contains correct models;
+     * - key newModels must contains correct models with sort set by preProcessing;
      * - key oldModels must contains correct models.
      *
      * @see RelationBehavior::loadModelsManyToManyVia
@@ -1109,12 +1183,20 @@ class RelationBehaviorTest extends TestCase
             $newModelsExpected[] = new FakeNewsFilesModel([
                 'entity_type' => 'with_condition',
                 'news_id' => $model->id,
-                'file_id' => $fileId
+                'file_id' => $fileId,
+                'sort'    => $i
             ]);
             $newFileIds[] = $fileId;
         }
 
-        $behavior = new RelationBehavior();
+        $sortOrder = 0;
+        $behavior = new RelationBehavior([
+            'preProcessing' => ['news_files_w_cond' => function(FakeNewsFilesModel $model) use (&$sortOrder) {
+                $model->sort = $sortOrder++;
+
+                return $model;
+            }]
+        ]);
         $behavior->owner = FakeNewsModel::findOne($model->id);
 
         $activeQuery = (new FakeNewsModel())
