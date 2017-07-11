@@ -8,10 +8,14 @@
 Behavior for support relational data management.
 
 - Insert related models from POST array.
-- Delete related models from database which not exist in POST array
-- Skip related models which already exist in database with same attributes
-- Rollback database changes, if relational model save/delete error occurred
-- Support one-to-one and one-to-many relations
+- Pre-processing for new models via callback function.
+- Delete related models from database which not exist in POST array.
+- Skip related models which already exist in database with same attributes.
+- Rollback database changes, if relational model save/delete error occurred.
+- Support one-to-one and one-to-many relations.
+
+With pre-processing you can set additional logic before create related models.
+For example, to add additional columns data to the junction table in a many-to-many relationship.
 
 This behavior uses getters for relational attribute in owner model, such getters must return `ActiveQuery` object.
 If you use string values in ON condition in `ActiveQuery` object, then this behavior will throw exception.
@@ -36,21 +40,21 @@ For make works this behavior you need:
 
 ...
 
-class Entity extends ActiveRecord
+class News extends ActiveRecord
 {
     ...
     
     public function rules()
     {
         return [
-            [['one_to_one_attribute'], 'safe']
+            [['file'], 'safe']
         ];
     }
     
-    public function getOne_to_one_attribute()
+    public function getFile()
     {
-        return $this->hasOne(OneToOneEntity::className(), 
-            ['id' => 'one_to_one_entity_id']);
+        return $this->hasOne(News::className(), 
+            ['id' => 'file_id']);
     }
     
     public function behaviors()
@@ -58,7 +62,7 @@ class Entity extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['one_to_one_attribute']
+                'relationalFields' => ['file']
             ]
         ];
     }
@@ -82,21 +86,21 @@ class Entity extends ActiveRecord
 
 ...
 
-class Entity extends ActiveRecord
+class News extends ActiveRecord
 {
     ...
     
     public function rules()
     {
         return [
-            [['one_to_many_attribute'], 'safe']
+            [['images'], 'safe']
         ];
     }
     
-    public function getOne_to_many_attribute()
+    public function getImages()
     {
-        return $this->hasMany(OneToManyEntity::className(), 
-            ['one_to_many_entity_id' => 'id']);
+        return $this->hasMany(Image::className(), 
+            ['news_id' => 'id']);
     }
     
     public function behaviors()
@@ -104,7 +108,7 @@ class Entity extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['one_to_many_attribute']
+                'relationalFields' => ['images']
             ]
         ];
     }
@@ -128,28 +132,28 @@ class Entity extends ActiveRecord
 
 ...
 
-class Entity extends ActiveRecord
+class News extends ActiveRecord
 {
     ...
     
     public function rules()
     {
         return [
-            [['many_to_many_attribute'], 'safe']
+            [['categories'], 'safe']
         ];
     }
        
-    public function getEntityManyToManyModels()
+    public function getNewsHasCategories()
     {
-        return $this->hasMany(EntityToManyToManyModel::className(), 
-            ['entity_id' => 'id']);
+        return $this->hasMany(NewsHasCategory::className(), 
+            ['news_id' => 'id']);
     }
 
-    public function getMany_to_many_attribute()
+    public function getCategories()
     {
-        return $this->hasMany(ManyToManyModel::className(), 
-            ['id' => 'many_to_many_model_id'])
-                ->via('entityManyToManyModels');
+        return $this->hasMany(Category::className(), 
+            ['id' => 'category_id'])
+                ->via('newsHasCategories');
     }
     
     public function behaviors()
@@ -157,7 +161,7 @@ class Entity extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['many_to_many_attribute']
+                'relationalFields' => ['categories']
             ]
         ];
     }
@@ -181,32 +185,32 @@ or
 
 ...
 
-class Entity extends ActiveRecord
+class News extends ActiveRecord
 {
     ...
     
     public function rules()
     {
         return [
-            [['many_to_many_attribute', 'many_to_many_attributy_w_cond'], 'safe']
+            [['categories', 'categories_type_archive'], 'safe']
         ];
     }
 
-    public function getMany_to_many_attribute()
+    public function getCategories()
     {
-        return $this->hasMany(ManyToManyModel::className(), 
-            ['id' => 'many_to_many_model_id'])
-                ->viaTable('table_many_to_many', ['entity_id' => 'id']);
+        return $this->hasMany(Category::className(), 
+            ['id' => 'category_id'])
+                ->viaTable('news_has_categories', ['news_id' => 'id']);
     }
     
     // with onCondition
-    public function getMany_to_many_attribute_w_cond()
+    public function getCategories_type_archive()
     {
-        return $this->hasMany(ManyToManyModel::className(), 
-            ['id' => 'many_to_many_model_id'])
-            ->viaTable('table_many_to_many_attributy_w_cond', ['entity_id' => 'id'], function($query) {
+        return $this->hasMany(Category::className(), 
+            ['id' => 'category_id'])
+            ->viaTable('news_has_categories', ['news_id' => 'id'], function($query) {
                  /** @var ActiveQuery $query */
-                 return $query->onCondition(['entity_type' => 'woo']);
+                 return $query->onCondition(['type' => 'archive']);
             });
     }
     
@@ -215,7 +219,67 @@ class Entity extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['many_to_many_attribute', 'many_to_many_attributy_w_cond']
+                'relationalFields' => ['categories', 'categories_type_archive']
+            ]
+        ];
+    }
+    
+    public function transactions()
+    {
+        return [
+            $this->getScenario() => static::OP_ALL
+        ];
+    }
+    
+    ...
+}
+```
+
+with sort
+
+```php
+<?php
+...
+
+class News extends ActiveRecord
+{
+    ...
+    
+    public function rules()
+    {
+        return [
+            [['categories'], 'safe']
+        ];
+    }
+       
+    public function getNewsHasCategories()
+    {
+        return $this->hasMany(NewsHasCategory::className(), 
+            ['news_id' => 'id']);
+    }
+    
+    public function getCategories()
+    {
+        return $this->hasMany(Category::className(), 
+            ['id' => 'category_id'])
+                ->via('newsHasCategories');
+    }
+    
+    public function behaviors()
+    {
+        $postSortIndex = 1;
+        
+        return [
+            [
+                'class' => RelationBehavior::className(),
+                'relationalFields' => ['categories'],
+                'preProcessing' => [
+                    'categories' => function (NewsHasCategory $model) use (&$postSortIndex) {
+                        $model->sort = $postSortIndex++;
+    
+                        return $model;
+                    }
+                ]
             ]
         ];
     }

@@ -19,14 +19,17 @@ use Yii;
  * Behavior for support relational data management.
  *
  * - Insert related models from POST array.
- * - Delete related models from database which not exist in POST array
- * - Skip related models which already exist in database with same attributes
- * - Rollback database changes, if relational model save/delete error occurred
- * - Support one-to-one, one-to-many and many-to-many relations
+ * - Pre-processing for new models via callback function.
+ * - Delete related models from database which not exist in POST array.
+ * - Skip related models which already exist in database with same attributes.
+ * - Rollback database changes, if relational model save/delete error occurred.
+ * - Support one-to-one, one-to-many and many-to-many relations.
+ *
+ * With pre-processing you can set additional logic before create related models.
+ * For example, to add additional columns data to the junction table in a many-to-many relationship.
  *
  * This behavior uses getters for relational attribute in owner model, such getters must return `ActiveQuery` object.
  * If you use string values in ON condition in `ActiveQuery` object, then this behavior will throw exception.
- * Also if many-to-many getter use ->viaTable(...) behavior will throw exception, use ->via(...) instead.
  *
  * For support transactions method transactions() in owner model must be defined:
  * ```php
@@ -48,7 +51,7 @@ class RelationBehavior extends Behavior
      * ```php
      * 'relationalFields' => ['posts', 'categories'],
      * 'preProcessing' => [
-     *    'posts' => function (ActiveRecord $model) use ($postSortIndex) {
+     *    'posts' => function (ActiveRecord $model) use (&$postSortIndex) {
      *          $model->sort = $postSortIndex++;
      *          return $model;
      *     },
@@ -59,7 +62,7 @@ class RelationBehavior extends Behavior
      * ]
      * ```
      *
-     * @var array Array of relation fields with callback-function for new models pre-processing.
+     * @var array Array of relation fields with callback-functions for new models pre-processing.
      */
     public $preProcessing;
 
