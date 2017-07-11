@@ -516,7 +516,7 @@ class RelationBehavior extends Behavior
         $class = $activeQuery->modelClass;
 
         $model = new $class($data['data']);
-        if ($this->preProcessing[$attribute]) {
+        if (isset($this->preProcessing[$attribute])) {
             $model = call_user_func($this->preProcessing[$attribute], $model);
         }
         $data['newModels'][] = $model;
@@ -551,7 +551,7 @@ class RelationBehavior extends Behavior
                         ArrayHelper::isAssociative($attributes) ? $attributes : []
                     )
                 );
-                if ($this->preProcessing[$attribute]) {
+                if (isset($this->preProcessing[$attribute])) {
                     $model = call_user_func($this->preProcessing[$attribute], $model);
                 }
                 $data['newModels'][] = $model;
@@ -596,7 +596,7 @@ class RelationBehavior extends Behavior
                     [$junctionColumn => $this->owner->getPrimaryKey()]
                 );
                 $junctionModel[$relatedColumn] = $relatedModelId;
-                if ($this->preProcessing[$attribute]) {
+                if (isset($this->preProcessing[$attribute])) {
                     $junctionModel = call_user_func($this->preProcessing[$attribute], $junctionModel);
                 }
                 $data['newRows'][] = $junctionModel;
