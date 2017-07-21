@@ -58,11 +58,17 @@ class FakeNewsModel extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::class,
-                'relationalFields' => ['file', 'images', 'news_files', 'news_files_via_table', 'news_files_via_table_w_cond', 'news_files_sort'],
-                'preProcessing' => ['news_files_sort' => function($model) use (&$sort) {
-                    $model->sort = $sort++;
-                    return $model;
-                }]
+                'relations' => [
+                    'file',
+                    'images',
+                    'news_files',
+                    'news_files_via_table',
+                    'news_files_via_table_w_cond',
+                    'news_files_sort' => function($model) use (&$sort) {
+                        $model->sort = $sort++;
+                        return $model;
+                    }
+                ]
             ]
         ];
     }

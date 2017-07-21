@@ -236,16 +236,12 @@ class RelationBehaviorIntegrationTest extends TestCase
         $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
             ->setMethods(['beforeSave', 'afterSave'])
             ->getMock();
-        $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
+        $mockBehavior->relations = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('beforeSave');
         $mockBehavior->expects($this->once())->method('afterSave');
 
         $model = new FakeNewsModel();
-
-        $model->detachBehaviors();
-
-        $model->attachBehavior('rel', $mockBehavior);
 
         $model->name = 'News 3';
         $model->file = ['src' => '/images/news3.file.txt'];
@@ -253,6 +249,11 @@ class RelationBehaviorIntegrationTest extends TestCase
             ['src' => '/images/news3.image1.png'],
             ['src' => '/images/news3.image2.png'],
         ];
+
+        $model->detachBehaviors();
+
+        $model->attachBehavior('rel', $mockBehavior);
+
         $model->save();
     }
 
@@ -266,23 +267,23 @@ class RelationBehaviorIntegrationTest extends TestCase
         $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
             ->setMethods(['beforeSave', 'afterSave'])
             ->getMock();
-        $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
+        $mockBehavior->relations = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('beforeSave');
         $mockBehavior->expects($this->once())->method('afterSave');
 
         $model = FakeNewsModel::findOne($this->model->id);
 
-        $model->detachBehaviors();
-
-        $model->attachBehavior('rel', $mockBehavior);
-
-        $model->name = 'News 3';
         $model->file = ['src' => '/images/news3.file.txt'];
         $model->images = [
             ['src' => '/images/news3.image1.png'],
             ['src' => '/images/news3.image1.png'],
         ];
+
+        $model->detachBehaviors();
+
+        $model->attachBehavior('rel', $mockBehavior);
+
         $model->save();
     }
 
@@ -295,7 +296,7 @@ class RelationBehaviorIntegrationTest extends TestCase
         $mockBehavior = $this->getMockBuilder(RelationBehavior::className())
             ->setMethods(['afterDelete'])
             ->getMock();
-        $mockBehavior->relationalFields = ['file', 'images', 'news_files'];
+        $mockBehavior->relations = ['file', 'images', 'news_files'];
 
         $mockBehavior->expects($this->once())->method('afterDelete');
 

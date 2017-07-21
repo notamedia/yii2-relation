@@ -31,7 +31,7 @@ composer require notamedia/yii2-relation
 For make works this behavior you need: 
 * Add all relational properties to rules as safe attribute
 * Declare getter for relational attribute
-* Put attribute to relationalFields property of behavior
+* Put attribute or attribute with callback to relations property of behavior
 * All used models need to have only one primary key column
 
 ### One-to-one
@@ -62,7 +62,7 @@ class News extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['file']
+                'relations' => ['file']
             ]
         ];
     }
@@ -108,7 +108,7 @@ class News extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['images']
+                'relations' => ['images']
             ]
         ];
     }
@@ -161,7 +161,7 @@ class News extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['categories']
+                'relations' => ['categories']
             ]
         ];
     }
@@ -219,7 +219,7 @@ class News extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['categories', 'categories_type_archive']
+                'relations' => ['categories', 'categories_type_archive']
             ]
         ];
     }
@@ -235,7 +235,7 @@ class News extends ActiveRecord
 }
 ```
 
-with sort
+with sort via callback-function
 
 ```php
 <?php
@@ -272,8 +272,7 @@ class News extends ActiveRecord
         return [
             [
                 'class' => RelationBehavior::className(),
-                'relationalFields' => ['categories'],
-                'preProcessing' => [
+                'relations' => [
                     'categories' => function (NewsHasCategory $model) use (&$postSortIndex) {
                         $model->sort = $postSortIndex++;
     

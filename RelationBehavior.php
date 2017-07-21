@@ -7,6 +7,7 @@
 namespace notamedia\relation;
 
 use yii\base\Behavior;
+use yii\base\InvalidConfigException;
 use yii\base\ModelEvent;
 use yii\db\ActiveQuery;
 use yii\db\ActiveQueryInterface;
@@ -44,32 +45,33 @@ use Yii;
  * ```
  *
  * @property ActiveRecord $owner
+ * @property array $relations
  */
 class RelationBehavior extends Behavior
 {
     /**
      * ```php
-     * 'relationalFields' => ['posts', 'categories'],
-     * 'preProcessing' => [
-     *    'posts' => function (ActiveRecord $model) use (&$postSortIndex) {
-     *          $model->sort = $postSortIndex++;
+     * 'relations' => [
+     *     'categories' => function (EntityHasCategory $model, $modelId) use (&$index) {
+     *          $model->sort = ++$index;
      *          return $model;
      *     },
-     *     'categories' => function (ActiveRecord $model) {
-     *          $model->category_id = RestHelper::getShortId($model->id);
-     *          return $model;
-     *     }
+     *     'industry' => function (EntityHasIndustry $model, $modelId) {
+     *         $model->industry_code = 'prefix_' . $modelId;
+     *         return $model;
+     *      },
+     *      'users',
      * ]
      * ```
      *
      * @var array Array of relation fields with callback-functions for new models pre-processing.
      */
-    public $preProcessing;
+    public $relations;
 
     /**
      * @var array Relation attributes list.
      */
-    public $relationalFields = [];
+    protected $relationalFields = [];
 
     /**
      * @var bool Indices finish of all saving operations.
@@ -82,15 +84,23 @@ class RelationBehavior extends Behavior
     protected $relationalData = [];
 
     /**
-     * @throws \InvalidArgumentException
+     * @throws InvalidConfigException
      */
     public function init()
     {
-        if ($this->preProcessing) {
-            foreach ($this->preProcessing as $field => $callback) {
-                if (!is_callable($callback)) {
-                    throw new \InvalidArgumentException(
-                        sprintf('Field "%s" must have callable, %s given.', $field, gettype($callback))
+        if ($this->relations) {
+            $keys = array_keys($this->relations);
+            $values = array_values($this->relations);
+            foreach ($values as $index => $value) {
+                if (is_string($value)) {
+                    $this->relationalFields[$value] = [];
+                } else if (is_callable($value)) {
+                    $this->relationalFields[$keys[$index]] = $value;
+                } else {
+                    throw new InvalidConfigException(
+                        sprintf(
+                            'Element at index "%s", must be string or callable, %s given.', $index, gettype($value)
+                        )
                     );
                 }
             }
@@ -143,7 +153,7 @@ class RelationBehavior extends Behavior
      */
     public function canSetProperty($name, $checkVars = true)
     {
-        return in_array($name, $this->relationalFields) || parent::canSetProperty($name, $checkVars);
+        return array_key_exists($name, $this->relationalFields) || parent::canSetProperty($name, $checkVars);
     }
 
     /**
@@ -154,7 +164,7 @@ class RelationBehavior extends Behavior
      */
     public function __set($name, $value)
     {
-        if (in_array($name, $this->relationalFields)) {
+        if (array_key_exists($name, $this->relationalFields)) {
             if (!is_array($value) && !empty($value)) {
                 $this->owner->addError($name,
                     Yii::$app->getI18n()->format(
@@ -431,7 +441,7 @@ class RelationBehavior extends Behavior
      */
     public function afterDelete()
     {
-        foreach ($this->relationalFields as $attribute) {
+        foreach ($this->relationalFields as $attribute => $value) {
             $getter = 'get' . ucfirst($attribute);
             /** @var ActiveQuery $activeQuery */
             $activeQuery = $this->owner->$getter();
@@ -519,8 +529,8 @@ class RelationBehavior extends Behavior
         $class = $activeQuery->modelClass;
 
         $model = new $class($data['data']);
-        if (isset($this->preProcessing[$attribute])) {
-            $model = call_user_func($this->preProcessing[$attribute], $model);
+        if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+            $model = call_user_func($this->relations[$attribute], $model, $data['data']);
         }
         $data['newModels'][] = $model;
 
@@ -554,8 +564,8 @@ class RelationBehavior extends Behavior
                         ArrayHelper::isAssociative($attributes) ? $attributes : []
                     )
                 );
-                if (isset($this->preProcessing[$attribute])) {
-                    $model = call_user_func($this->preProcessing[$attribute], $model);
+                if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+                    $model = call_user_func($this->relations[$attribute], $model, $attributes);
                 }
                 $data['newModels'][] = $model;
             }
@@ -599,8 +609,8 @@ class RelationBehavior extends Behavior
                     [$junctionColumn => $this->owner->getPrimaryKey()]
                 );
                 $junctionModel[$relatedColumn] = $relatedModelId;
-                if (isset($this->preProcessing[$attribute])) {
-                    $junctionModel = call_user_func($this->preProcessing[$attribute], $junctionModel);
+                if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+                    $junctionModel = call_user_func($this->relations[$attribute], $junctionModel, $relatedModelId);
                 }
                 $data['newRows'][] = $junctionModel;
             }
@@ -665,8 +675,8 @@ class RelationBehavior extends Behavior
                     )
                 );
                 $junctionModel->$relatedColumn = $relatedModelId;
-                if (isset($this->preProcessing[$attribute])) {
-                    $junctionModel = call_user_func($this->preProcessing[$attribute], $junctionModel);
+                if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+                    $junctionModel = call_user_func($this->relations[$attribute], $junctionModel, $relatedModelId);
                 }
                 $data['newModels'][] = $junctionModel;
             }

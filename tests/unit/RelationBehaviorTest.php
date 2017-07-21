@@ -16,24 +16,6 @@ class RelationBehaviorTest extends TestCase
 
     /**
      * Testing method init():
-     * - throw exception on invalid preProcessing configuration.
-     *
-     * @see RelationBehavior::init
-     */
-    public function testPreProcessingInitThrowException()
-    {
-        $this->expectException(\InvalidArgumentException::class);
-
-        $behavior = new RelationBehavior([
-            'relationalFields' => ['images'],
-            'preProcessing' => ['images' => 'string']
-        ]);
-
-        $behavior->init();
-    }
-
-    /**
-     * Testing method init():
      * - passed initialization.
      *
      * @see RelationBehavior::init
@@ -41,10 +23,15 @@ class RelationBehaviorTest extends TestCase
     public function testPreProcessingInit()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['images'],
-            'preProcessing' => ['images' => function() {
-                return true;
-            }]
+            'relations' => [
+                'images' => function() {
+                    return true;
+                },
+                'news',
+                'catalog' => function() {
+                    return true;
+                },
+            ]
         ]);
 
         $behavior->init();
@@ -59,7 +46,7 @@ class RelationBehaviorTest extends TestCase
     public function testGetRelationData()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['images']
+            'relations' => ['images']
         ]);
 
         $data = [['src' => '/images/image.new.png']];
@@ -79,7 +66,7 @@ class RelationBehaviorTest extends TestCase
     public function testCanSetProperty()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['file', 'images'],
+            'relations' => ['file', 'images'],
         ]);
 
         // valid fields
@@ -118,7 +105,7 @@ class RelationBehaviorTest extends TestCase
         $mockModel->expects($this->any())->method('getErrors')->willReturn(['file' => ['File is invalid']]);
 
         $behavior = new RelationBehavior([
-            'relationalFields' => ['file'],
+            'relations' => ['file'],
         ]);
         $behavior->owner = $mockModel;
 
@@ -138,7 +125,7 @@ class RelationBehaviorTest extends TestCase
         ], 'relationalData', $behavior);
 
         $behavior = new RelationBehavior([
-            'relationalFields' => ['file'],
+            'relations' => ['file'],
         ]);
         $behavior->owner = $mockModel;
 
@@ -170,7 +157,7 @@ class RelationBehaviorTest extends TestCase
         $mockModel->expects($this->any())->method('getFile')->willReturn($activeQuery);
 
         $behavior = new RelationBehavior([
-            'relationalFields' => ['file', 'image'],
+            'relations' => ['file', 'image'],
         ]);
         $behavior->owner = $mockModel;
 
@@ -208,7 +195,7 @@ class RelationBehaviorTest extends TestCase
     public function testLoadDataOneToMany()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['images'],
+            'relations' => ['images'],
         ]);
 
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
@@ -277,7 +264,7 @@ class RelationBehaviorTest extends TestCase
         $mockModel->expects($this->any())->method('getFiles')->willReturn($mockModel->hasMany(FakeFilesModel::className(), ['id' => 'file_id'])->via('newsFiles'));
 
         $behavior = new RelationBehavior([
-            'relationalFields' => ['news_files', 'files'],
+            'relations' => ['news_files', 'files'],
         ]);
         $behavior->owner = $mockModel;
 
@@ -365,7 +352,7 @@ class RelationBehaviorTest extends TestCase
         $mockModel->expects($this->any())->method('getNews_files_via_table')->willReturn($activeQuery);
 
         $behavior = new RelationBehavior([
-            'relationalFields' => ['news_files_via_table'],
+            'relations' => ['news_files_via_table'],
         ]);
         $behavior->owner = $mockModel;
 
@@ -437,7 +424,7 @@ class RelationBehaviorTest extends TestCase
     public function testValidateData()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['file', 'images'],
+            'relations' => ['file', 'images'],
         ]);
 
         /** @var FakeNewsModel|\PHPUnit_Framework_MockObject_MockObject $mockModel */
@@ -545,7 +532,7 @@ class RelationBehaviorTest extends TestCase
     public function testReplaceExistingModel()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['images'],
+            'relations' => ['images'],
         ]);
 
         $prop = new \ReflectionProperty(
@@ -588,7 +575,7 @@ class RelationBehaviorTest extends TestCase
     public function testIsDeletedModel()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['images'],
+            'relations' => ['images'],
         ]);
 
         $prop = new \ReflectionProperty(
@@ -632,7 +619,7 @@ class RelationBehaviorTest extends TestCase
     public function testIsDeletedRow()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['news_files_via_table'],
+            'relations' => ['news_files_via_table'],
         ]);
 
         $prop = new \ReflectionProperty(
@@ -686,7 +673,7 @@ class RelationBehaviorTest extends TestCase
     public function testIsExistingRow()
     {
         $behavior = new RelationBehavior([
-            'relationalFields' => ['news_files_via_table'],
+            'relations' => ['news_files_via_table'],
         ]);
 
         $prop = new \ReflectionProperty(
@@ -833,8 +820,7 @@ class RelationBehaviorTest extends TestCase
     {
         $entity_id = 1090;
         $behavior = new RelationBehavior([
-            'relationalFields' => ['file'],
-            'preProcessing' => ['file' => function(FakeFilesModel $model) use ($entity_id) {
+            'relations' => ['file' => function(FakeFilesModel $model) use ($entity_id) {
                 $model->entity_id = $entity_id;
 
                 return $model;
@@ -888,7 +874,7 @@ class RelationBehaviorTest extends TestCase
 
         $entity_id = 1090;
         $behavior = new RelationBehavior([
-            'preProcessing' => ['images' => function(FakeFilesModel $model) use ($entity_id) {
+            'relations' => ['images' => function(FakeFilesModel $model) use ($entity_id) {
                 $model->entity_id = $entity_id;
 
                 return $model;
@@ -979,7 +965,7 @@ class RelationBehaviorTest extends TestCase
 
         $sortOrder = 0;
         $behavior = new RelationBehavior([
-            'preProcessing' => ['news_files_via_table' => function(array $model) use (&$sortOrder) {
+            'relations' => ['news_files_via_table' => function(array $model) use (&$sortOrder) {
                 $model['sort'] = $sortOrder++;
 
                 return $model;
@@ -1051,7 +1037,7 @@ class RelationBehaviorTest extends TestCase
 
         $sortOrder = 0;
         $behavior = new RelationBehavior([
-            'preProcessing' => ['news_files_via_table_w_cond' => function(array $model) use (&$sortOrder) {
+            'relations' => ['news_files_via_table_w_cond' => function(array $model) use (&$sortOrder) {
                 $model['sort'] = $sortOrder++;
 
                 return $model;
@@ -1121,7 +1107,7 @@ class RelationBehaviorTest extends TestCase
 
         $sortOrder = 0;
         $behavior = new RelationBehavior([
-            'preProcessing' => ['news_files' => function(FakeNewsFilesModel $model) use (&$sortOrder) {
+            'relations' => ['news_files' => function(FakeNewsFilesModel $model) use (&$sortOrder) {
                 $model->sort = $sortOrder++;
 
                 return $model;
@@ -1191,7 +1177,7 @@ class RelationBehaviorTest extends TestCase
 
         $sortOrder = 0;
         $behavior = new RelationBehavior([
-            'preProcessing' => ['news_files_w_cond' => function(FakeNewsFilesModel $model) use (&$sortOrder) {
+            'relations' => ['news_files_w_cond' => function(FakeNewsFilesModel $model) use (&$sortOrder) {
                 $model->sort = $sortOrder++;
 
                 return $model;
