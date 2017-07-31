@@ -88,6 +88,8 @@ class RelationBehavior extends Behavior
      */
     public function init()
     {
+        parent::init();
+
         if ($this->relations) {
             $keys = array_keys($this->relations);
             $values = array_values($this->relations);
