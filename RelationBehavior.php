@@ -7,6 +7,7 @@
 namespace notamedia\relation;
 
 use yii\base\Behavior;
+use yii\base\InvalidConfigException;
 use yii\base\ModelEvent;
 use yii\db\ActiveQuery;
 use yii\db\ActiveQueryInterface;
@@ -19,14 +20,17 @@ use Yii;
  * Behavior for support relational data management.
  *
  * - Insert related models from POST array.
- * - Delete related models from database which not exist in POST array
- * - Skip related models which already exist in database with same attributes
- * - Rollback database changes, if relational model save/delete error occurred
- * - Support one-to-one, one-to-many and many-to-many relations
+ * - Pre-processing for new models via callback function.
+ * - Delete related models from database which not exist in POST array.
+ * - Skip related models which already exist in database with same attributes.
+ * - Rollback database changes, if relational model save/delete error occurred.
+ * - Support one-to-one, one-to-many and many-to-many relations.
+ *
+ * With pre-processing you can set additional logic before create related models.
+ * For example, to add additional columns data to the junction table in a many-to-many relationship.
  *
  * This behavior uses getters for relational attribute in owner model, such getters must return `ActiveQuery` object.
  * If you use string values in ON condition in `ActiveQuery` object, then this behavior will throw exception.
- * Also if many-to-many getter use ->viaTable(...) behavior will throw exception, use ->via(...) instead.
  *
  * For support transactions method transactions() in owner model must be defined:
  * ```php
@@ -41,16 +45,36 @@ use Yii;
  * ```
  *
  * @property ActiveRecord $owner
+ * @property array $relations
  */
 class RelationBehavior extends Behavior
 {
     /**
-     * @var array Relation attributes list.
+     * ```php
+     * 'relations' => [
+     *     'categories' => function (EntityHasCategory $model, $modelId) use (&$index) {
+     *          $model->sort = ++$index;
+     *          return $model;
+     *     },
+     *     'industry' => function (EntityHasIndustry $model, $modelId) {
+     *         $model->industry_code = 'prefix_' . $modelId;
+     *         return $model;
+     *      },
+     *      'users',
+     * ]
+     * ```
+     *
+     * @var array Array of relation fields with callback-functions for new models pre-processing.
      */
-    public $relationalFields = [];
+    public $relations;
 
     /**
-     * @var bool Indices finish of all saving operations
+     * @var array Relation attributes list.
+     */
+    protected $relationalFields = [];
+
+    /**
+     * @var bool Indices finish of all saving operations.
      */
     protected $relationalFinished = false;
 
@@ -58,6 +82,32 @@ class RelationBehavior extends Behavior
      * @var array Relation attributes data.
      */
     protected $relationalData = [];
+
+    /**
+     * @throws InvalidConfigException
+     */
+    public function init()
+    {
+        parent::init();
+
+        if ($this->relations) {
+            $keys = array_keys($this->relations);
+            $values = array_values($this->relations);
+            foreach ($values as $index => $value) {
+                if (is_string($value)) {
+                    $this->relationalFields[$value] = [];
+                } else if (is_callable($value)) {
+                    $this->relationalFields[$keys[$index]] = $value;
+                } else {
+                    throw new InvalidConfigException(
+                        sprintf(
+                            'Element at index "%s", must be string or callable, %s given.', $index, gettype($value)
+                        )
+                    );
+                }
+            }
+        }
+    }
 
     /**
      * Process owner-model before save event.
@@ -105,7 +155,7 @@ class RelationBehavior extends Behavior
      */
     public function canSetProperty($name, $checkVars = true)
     {
-        return in_array($name, $this->relationalFields) || parent::canSetProperty($name, $checkVars);
+        return array_key_exists($name, $this->relationalFields) || parent::canSetProperty($name, $checkVars);
     }
 
     /**
@@ -116,7 +166,7 @@ class RelationBehavior extends Behavior
      */
     public function __set($name, $value)
     {
-        if (in_array($name, $this->relationalFields)) {
+        if (array_key_exists($name, $this->relationalFields)) {
             if (!is_array($value) && !empty($value)) {
                 $this->owner->addError($name,
                     Yii::$app->getI18n()->format(
@@ -244,11 +294,10 @@ class RelationBehavior extends Behavior
         $needSaveOwner = false;
 
         foreach ($this->relationalData as $attribute => $data) {
-
-            // save models
-            $this->saveModels($attribute);
             // delete models
             $this->deleteModels($attribute);
+            // save models
+            $this->saveModels($attribute);
 
             if (!$data['activeQuery']->multiple && (count($data['newModels']) == 0 || !$data['newModels'][0]->isNewRecord)) {
                 $needSaveOwner = true;
@@ -394,7 +443,7 @@ class RelationBehavior extends Behavior
      */
     public function afterDelete()
     {
-        foreach ($this->relationalFields as $attribute) {
+        foreach ($this->relationalFields as $attribute => $value) {
             $getter = 'get' . ucfirst($attribute);
             /** @var ActiveQuery $activeQuery */
             $activeQuery = $this->owner->$getter();
@@ -481,7 +530,11 @@ class RelationBehavior extends Behavior
         $activeQuery = $data['activeQuery'];
         $class = $activeQuery->modelClass;
 
-        $data['newModels'][] = new $class($data['data']);
+        $model = new $class($data['data']);
+        if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+            $model = call_user_func($this->relations[$attribute], $model, $data['data']);
+        }
+        $data['newModels'][] = $model;
 
         $this->relationalData[$attribute] = $data;
     }
@@ -507,12 +560,16 @@ class RelationBehavior extends Behavior
 
         if (!empty($data['data'])) {
             foreach ($data['data'] as $attributes) {
-                $data['newModels'][] = new $class(
+                $model = new $class(
                     array_merge(
                         $params,
                         ArrayHelper::isAssociative($attributes) ? $attributes : []
                     )
                 );
+                if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+                    $model = call_user_func($this->relations[$attribute], $model, $attributes);
+                }
+                $data['newModels'][] = $model;
             }
         }
 
@@ -554,6 +611,9 @@ class RelationBehavior extends Behavior
                     [$junctionColumn => $this->owner->getPrimaryKey()]
                 );
                 $junctionModel[$relatedColumn] = $relatedModelId;
+                if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+                    $junctionModel = call_user_func($this->relations[$attribute], $junctionModel, $relatedModelId);
+                }
                 $data['newRows'][] = $junctionModel;
             }
         }
@@ -617,6 +677,9 @@ class RelationBehavior extends Behavior
                     )
                 );
                 $junctionModel->$relatedColumn = $relatedModelId;
+                if (isset($this->relations[$attribute]) && is_callable($this->relations[$attribute])) {
+                    $junctionModel = call_user_func($this->relations[$attribute], $junctionModel, $relatedModelId);
+                }
                 $data['newModels'][] = $junctionModel;
             }
         }

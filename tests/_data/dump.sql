@@ -18,6 +18,7 @@ CREATE TABLE files (
 CREATE TABLE news_files (
   news_id INTEGER,
   file_id INTEGER,
+  sort INTEGER,
   entity_type VARCHAR(10),
   PRIMARY KEY (news_id, file_id)
 );
