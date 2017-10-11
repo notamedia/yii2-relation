@@ -1,4 +1,4 @@
-# Saving related data in Yii2
+# Saving Related Data in Yii2
 
 [![Build Status](https://travis-ci.org/notamedia/yii2-relation.svg)](https://travis-ci.org/notamedia/yii2-relation)
 [![Latest Stable Version](https://poser.pugx.org/notamedia/yii2-relation/v/stable)](https://packagist.org/packages/notamedia/yii2-relation) 
@@ -26,24 +26,22 @@ If you use string values in ON condition in `ActiveQuery` object, then this beha
 composer require notamedia/yii2-relation
 ```
 
-## Examples
+## Usages
 
-For make works this behavior you need: 
-* Add all relational properties to rules as safe attribute
-* Declare getter for relational attribute
-* Put attribute or attribute with callback to relations property of behavior
-* All used models need to have only one primary key column
+For make works this behavior you need:
 
-### One-to-one
+* Add all relational properties to rules as safe attribute.
+* Declare getter for relational attribute.
+* Put attribute or attribute with callback to relations property of behavior.
+* All used models need to have only one primary key column.
+
+### One to One Relationships
+
 ```php
 <?php
 
-...
-
-class News extends ActiveRecord
+class News extends \yii\db\ActiveRecord
 {
-    ...
-    
     public function rules()
     {
         return [
@@ -53,15 +51,14 @@ class News extends ActiveRecord
     
     public function getFile()
     {
-        return $this->hasOne(News::className(), 
-            ['id' => 'file_id']);
+        return $this->hasOne(File::class, ['id' => 'file_id']);
     }
     
     public function behaviors()
     {
         return [
             [
-                'class' => RelationBehavior::className(),
+                'class' => \notamedia\relation\RelationBehavior::class,
                 'relations' => ['file']
             ]
         ];
@@ -73,23 +70,17 @@ class News extends ActiveRecord
             $this->getScenario() => static::OP_ALL
         ];
     }
-    
-    ...
 }
 
 ```
 
-### One-to-many
+### One to Many Relationships
 
 ```php
 <?php
 
-...
-
-class News extends ActiveRecord
+class News extends \yii\db\ActiveRecord
 {
-    ...
-    
     public function rules()
     {
         return [
@@ -99,7 +90,7 @@ class News extends ActiveRecord
     
     public function getImages()
     {
-        return $this->hasMany(Image::className(), 
+        return $this->hasMany(Image::class, 
             ['news_id' => 'id']);
     }
     
@@ -107,7 +98,7 @@ class News extends ActiveRecord
     {
         return [
             [
-                'class' => RelationBehavior::className(),
+                'class' => \notamedia\relation\RelationBehavior::class,
                 'relations' => ['images']
             ]
         ];
@@ -119,23 +110,18 @@ class News extends ActiveRecord
             $this->getScenario() => static::OP_ALL
         ];
     }
-    
-    ...
 }
-
 ```
 
-### Many-to-many
+### Many to Many Relationships
+
+With `via`:
 
 ```php
 <?php
 
-...
-
-class News extends ActiveRecord
+class News extends \yii\db\ActiveRecord
 {
-    ...
-    
     public function rules()
     {
         return [
@@ -145,22 +131,20 @@ class News extends ActiveRecord
        
     public function getNewsHasCategories()
     {
-        return $this->hasMany(NewsHasCategory::className(), 
-            ['news_id' => 'id']);
+        return $this->hasMany(NewsHasCategory::class, ['news_id' => 'id']);
     }
 
     public function getCategories()
     {
-        return $this->hasMany(Category::className(), 
-            ['id' => 'category_id'])
-                ->via('newsHasCategories');
+        return $this->hasMany(Category::class, ['id' => 'category_id'])
+            ->via('newsHasCategories');
     }
     
     public function behaviors()
     {
         return [
             [
-                'class' => RelationBehavior::className(),
+                'class' => \notamedia\relation\RelationBehavior::class,
                 'relations' => ['categories']
             ]
         ];
@@ -172,23 +156,16 @@ class News extends ActiveRecord
             $this->getScenario() => static::OP_ALL
         ];
     }
-    
-    ...
 }
-
 ```
 
-or
+With `viaTable`:
 
 ```php
 <?php
 
-...
-
-class News extends ActiveRecord
+class News extends \yii\db\ActiveRecord
 {
-    ...
-    
     public function rules()
     {
         return [
@@ -198,18 +175,15 @@ class News extends ActiveRecord
 
     public function getCategories()
     {
-        return $this->hasMany(Category::className(), 
-            ['id' => 'category_id'])
-                ->viaTable('news_has_categories', ['news_id' => 'id']);
+        return $this->hasMany(Category::class, ['id' => 'category_id'])
+            ->viaTable('news_has_categories', ['news_id' => 'id']);
     }
     
     // with onCondition
     public function getCategories_type_archive()
     {
-        return $this->hasMany(Category::className(), 
-            ['id' => 'category_id'])
+        return $this->hasMany(Category::class, ['id' => 'category_id'])
             ->viaTable('news_has_categories', ['news_id' => 'id'], function($query) {
-                 /** @var ActiveQuery $query */
                  return $query->onCondition(['type' => 'archive']);
             });
     }
@@ -218,7 +192,7 @@ class News extends ActiveRecord
     {
         return [
             [
-                'class' => RelationBehavior::className(),
+                'class' => \notamedia\relation\RelationBehavior::class,
                 'relations' => ['categories', 'categories_type_archive']
             ]
         ];
@@ -230,21 +204,16 @@ class News extends ActiveRecord
             $this->getScenario() => static::OP_ALL
         ];
     }
-    
-    ...
 }
 ```
 
-with sort via callback-function
+### Sorting Data Relationships
 
 ```php
 <?php
-...
 
-class News extends ActiveRecord
+class News extends \yii\db\ActiveRecord
 {
-    ...
-    
     public function rules()
     {
         return [
@@ -254,27 +223,25 @@ class News extends ActiveRecord
        
     public function getNewsHasCategories()
     {
-        return $this->hasMany(NewsHasCategory::className(), 
-            ['news_id' => 'id']);
+        return $this->hasMany(NewsHasCategory::class, ['news_id' => 'id']);
     }
     
     public function getCategories()
     {
-        return $this->hasMany(Category::className(), 
-            ['id' => 'category_id'])
-                ->via('newsHasCategories');
+        return $this->hasMany(Category::class, ['id' => 'category_id'])
+            ->via('newsHasCategories');
     }
     
     public function behaviors()
     {
-        $postSortIndex = 1;
+        $sortIndex = 1;
         
         return [
             [
-                'class' => RelationBehavior::className(),
+                'class' => \notamedia\relation\RelationBehavior::class,
                 'relations' => [
-                    'categories' => function (NewsHasCategory $model) use (&$postSortIndex) {
-                        $model->sort = $postSortIndex++;
+                    'categories' => function (NewsHasCategory $model) use (&$sortIndex) {
+                        $model->sort = $sortIndex++;
     
                         return $model;
                     }
@@ -289,8 +256,6 @@ class News extends ActiveRecord
             $this->getScenario() => static::OP_ALL
         ];
     }
-    
-    ...
 }
 
 ```
